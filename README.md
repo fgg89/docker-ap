@@ -9,6 +9,7 @@ The script should be run as sudo. The first time the script is executed, it will
 ```
 ./docker_ap.sh interface start|stop
 ```
+It is recommended to stop the service with the script in order to revert the host configuration to its initial state.
 
 ## Example of configuration files
 

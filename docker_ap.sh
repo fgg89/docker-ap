@@ -22,10 +22,10 @@ PATHSCRIPT=`pwd`
 NAME="ap-container"
 
 IFACE=$1
-if [ "$IFACE" == "" ]
-then
-    IFACE="wlan5"
-fi
+#if [ "$IFACE" == "" ]
+#then
+#    IFACE="wlan5"
+#fi
 
 init () {
 
@@ -116,6 +116,11 @@ service_stop () {
     rm $PATHSCRIPT/hostapd.conf
     rm $PATHSCRIPT/dnsmasq.conf
 }
+
+if [ "$#" -ne 2 ]; then
+    echo "Usage: docker_ap.sh [interface] [start|stop]"
+    exit 1
+fi 
 
 if [ "$2" == "start" ]
 then
