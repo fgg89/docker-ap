@@ -1,7 +1,15 @@
 #!/bin/bash
-
+#title           :allocate_ifaces.sh
+#description     :This script will passthrough the wlan interface to the docker container.
+#		  It will also configure a pair of veth interfaces for internet access. 
+#author          :Fran Gonzalez
+#date            :20150619
+#version         :0.1    
+#usage           :bash allocate_ifaces.sh <pid> <wlan_phy>
+#bash_version    :
+#==============================================================================all 
 if [ "$#" -ne 2 ]; then
-    echo "Usage: allocate-ifaces.sh [pid] [wlan_phy]"
+    echo "Usage: allocate-ifaces.sh <pid> <wlan_phy>"
     exit 1
 fi
 
@@ -9,7 +17,9 @@ pid=$1
 PHY=$2
 #pid=`docker inspect -f '{{.State.Pid}}' $DOCKER_NAME`
 
-bridge="br0"
+bridge="docker0"
+WAN_IP="172.17.42.99/24"
+GW="172.17.42.1"
 
 ##################################################
 # Assign phy wireless interface to the container #
@@ -38,6 +48,6 @@ ip link set veth1 netns $pid
 ip netns exec $pid ip link set dev veth1 name eth0
 ip netns exec $pid ip link set eth0 address 12:34:56:78:9a:bc
 ip netns exec $pid ip link set eth0 up
-ip netns exec $pid ip addr add 172.16.250.198/24 dev eth0
-ip netns exec $pid ip route add default via 172.16.250.1
+ip netns exec $pid ip addr add $WAN_IP dev eth0
+ip netns exec $pid ip route add default via $GW
 

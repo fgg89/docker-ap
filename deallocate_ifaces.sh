@@ -1,5 +1,12 @@
 #!/bin/bash
-
+#title           :deallocate_ifaces.sh
+#description     :This script will complete the cleaning after destroying the container.
+#author          :Fran Gonzalez
+#date            :20150619
+#version         :0.1    
+#usage           :bash deallocate_ifaces.sh 
+#bash_version    :
+#==============================================================================all
 
 if [ "$#" -ne 0 ]; then
     echo "Usage: deallocate-ifaces.sh"
