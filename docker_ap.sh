@@ -21,6 +21,7 @@ SUBNET="192.168.7"
 IP_AP="192.168.7.1"
 NETMASK="/24"
 PATHSCRIPT=`pwd`
+PATHUTILS=$PATHSCRIPT/utils
 NAME="ap-container"
 
 # Use param 2 or default
@@ -82,6 +83,7 @@ init () {
     echo 1 > /proc/sys/net/ipv4/ip_forward
 
 
+echo [+] Generating hostapd.conf 
 ### Generating hostapd conf file
 cat <<EOF > $PATHSCRIPT/hostapd.conf
 ssid=$SSID
@@ -97,6 +99,7 @@ logger_stdout=-1
 logger_stdout_level=2
 EOF
 
+echo [+] Generating dnsmasq.conf 
 ### Generating dnsmasq conf file
 cat <<EOF > $PATHSCRIPT/dnsmasq.conf
 no-resolv 
@@ -124,7 +127,7 @@ service_start () {
     # docker run --rm -t -i --name $NAME --net=host --privileged -v $PATHSCRIPT/hostapd.conf:/etc/hostapd/hostapd.conf -v $PATHSCRIPT/dnsmasq.conf:/etc/dnsmasq.conf fgg89/ubuntu-ap /sbin/my_init -- bash -l
     docker run -d --name $NAME --net=none --privileged -v $PATHSCRIPT/hostapd.conf:/etc/hostapd/hostapd.conf -v $PATHSCRIPT/dnsmasq.conf:/etc/dnsmasq.conf docker-ap /sbin/my_init > /dev/null 2>&1
     pid=`docker inspect -f '{{.State.Pid}}' $NAME`
-    ./allocate_ifaces.sh $pid $PHY 
+    bash $PATHUTILS/allocate_ifaces.sh $pid $PHY 
     
     ### Assign IP to the wifi interface
     echo [+] Configuring $IFACE with IP address $IP_AP 
@@ -152,17 +155,16 @@ service_start () {
 # remove the conf files for hostapd and dnsmasq			#
 #################################################################
 service_stop () { 
-    echo [+] Stopping the docker container and reverting system configuration
-    echo Stopping $NAME...
+    echo [-] Stopping $NAME...
     docker stop $NAME
-    echo Removing $NAME...
+    echo [-] Removing $NAME...
     docker rm $NAME
 #    ip addr del $IP_AP$NETMASK dev $IFACE
-    echo Reversing iptables configuration...
+    echo [-] Reversing iptables configuration...
     iptables -t nat -D POSTROUTING -s $SUBNET.0$NETMASK ! -d $SUBNET.0$NETMASK -j MASQUERADE
-    echo Disabling ip forwarding...
+    echo [-] Disabling ip forwarding...
     echo 0 > /proc/sys/net/ipv4/ip_forward
-    echo Removing conf files...
+    echo [-] Removing conf files...
     rm $PATHSCRIPT/hostapd.conf
     rm $PATHSCRIPT/dnsmasq.conf
 }
@@ -186,7 +188,7 @@ elif [ "$1" == "stop" ]
 then
     clear
     service_stop
-    ./deallocate_ifaces.sh
+    bash $PATHUTILS/deallocate_ifaces.sh
 elif [ "$1" == "help" ]
 then
     echo "Usage: docker_ap <start|stop> [wlan_iface]"
