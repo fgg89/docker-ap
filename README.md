@@ -1,15 +1,20 @@
 # docker-ap
 
-This script configures an Ubuntu-based system to act as a WiFi access point. The AP runs inside a docker container.
+This script configures an Ubuntu-based system to act as a wireless access point. The AP runs inside a docker container.
 
 The script should be run as sudo. The first time the script is executed, it will pull the docker image from fgg89/ubuntu-ap repository. This docker image is based on baseimage (Please visit https://github.com/phusion/baseimage-docker for more info). The image contains the programs dnsmasq and hostapd. Their respective configuration files are generated on the fly and mounted in the docker container.
+
+The docker container has exclusive access to the physical wireless interface (for more info please visit: https://github.com/fgg89/docker-ap/wiki/Container-access-to-wireless-network-interface)
 
 ## Usage
 
 ```
-./docker_ap.sh interface start|stop
+./docker_ap.sh interface <start|stop> [wlan_interface]
 ```
-It is recommended to stop the service with the script in order to revert the host configuration to its initial state.
+
+If no wlan interface is specified, it will use wlan5 by default.
+
+It is recommended to stop the service with the script in order to revert the host configuration to its initial state (iptables, ip forwarding, etc).
 
 ## Example of configuration files
 
