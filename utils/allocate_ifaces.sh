@@ -18,7 +18,7 @@ PHY=$2
 #pid=`docker inspect -f '{{.State.Pid}}' $DOCKER_NAME`
 
 bridge="docker0"
-WAN_IP="172.17.42.99/24"
+WAN_IP="172.17.42.99/16"
 GW="172.17.42.1"
 
 ##################################################
