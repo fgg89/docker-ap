@@ -22,10 +22,15 @@ PATHSCRIPT=`pwd`
 NAME="ap-container"
 
 IFACE=$1
+# Find out mapping wlanX -> phyX
+PHY=`cat /sys/class/net/$IFACE/phy80211/name`
+
 #if [ "$IFACE" == "" ]
 #then
 #    IFACE="wlan5"
 #fi
+
+clear
 
 init () {
 
@@ -39,9 +44,9 @@ init () {
     ### Check if dnsmasq is running
     if ps aux | grep -v grep | grep dnsmasq > /dev/null
     then
-        echo [+] dnsmasq is running
-        echo [+] Turning dnsmasq off
-        killall dnsmasq
+       echo [+] dnsmasq is running
+       echo [+] Turning dnsmasq off
+       killall dnsmasq
     else
         echo [+] dnsmasq is stopped
     fi
@@ -63,7 +68,7 @@ init () {
     ### Assign IP to the wifi interface
     echo [+] Configuring $IFACE with IP address $IP_AP 
     ip addr flush dev $IFACE
-    ip addr add $IP_AP$NETMASK dev $IFACE
+#    ip addr add $IP_AP$NETMASK dev $IFACE
 
     ### iptables rules for NAT
     echo [+] Adding natting rule to iptables
@@ -102,15 +107,22 @@ EOF
 service_start () { 
     echo [+] Starting the docker container
     ## --rm, remove this flag if you want the container to remain after stopping it
-    docker run --rm -t -i --name $NAME --net=host --privileged -v $PATHSCRIPT/hostapd.conf:/etc/hostapd/hostapd.conf -v $PATHSCRIPT/dnsmasq.conf:/etc/dnsmasq.conf fgg89/ubuntu-ap /sbin/my_init -- bash -l
+#    docker run --rm -t -i --name $NAME --net=host --privileged -v $PATHSCRIPT/hostapd.conf:/etc/hostapd/hostapd.conf -v $PATHSCRIPT/dnsmasq.conf:/etc/dnsmasq.conf fgg89/ubuntu-ap /sbin/my_init -- bash -l
+    docker run -d --name $NAME --net=none --privileged -v $PATHSCRIPT/hostapd.conf:/etc/hostapd/hostapd.conf -v $PATHSCRIPT/dnsmasq.conf:/etc/dnsmasq.conf docker-ap /sbin/my_init
+    pid=`docker inspect -f '{{.State.Pid}}' $NAME`
+    ./allocate_ifaces.sh $pid $PHY 
 
+    ip netns exec $pid ip link set $IFACE up
+    ip netns exec $pid ip addr add $IP_AP$NETMASK dev $IFACE
+ 
+    docker exec $NAME start_ap.sh   
 }
 
 service_stop () { 
     echo [+] Stopping the docker container and reverting system configuration
     docker stop $NAME
-#    docker rm $NAME
-    ip addr del $IP_AP$NETMASK dev $IFACE
+    docker rm $NAME
+#    ip addr del $IP_AP$NETMASK dev $IFACE
     iptables -t nat -D POSTROUTING -s $SUBNET.0$NETMASK ! -d $SUBNET.0$NETMASK -j MASQUERADE
     echo 0 > /proc/sys/net/ipv4/ip_forward
     rm $PATHSCRIPT/hostapd.conf
@@ -129,6 +141,7 @@ then
 elif [ "$2" == "stop" ]
 then
     service_stop
+    ./deallocate_ifaces.sh
 else
     echo "Please enter a valid argument"
 fi
