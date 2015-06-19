@@ -16,6 +16,12 @@ If no wlan interface is specified, it will use wlan5 by default.
 
 It is recommended to stop the service with the script in order to revert the host configuration to its initial state (iptables, ip forwarding, etc).
 
+You can get into the container once it's been run by using the ``exec`` option in docker:
+
+```
+docker exec -it ap-container bash
+```
+
 ## Example of configuration files
 
 ### dnsmasq configuration

@@ -14,14 +14,14 @@
 #==============================================================================all 
 
 ### Variables
+PATHSCRIPT=`pwd`
+PATHUTILS=$PATHSCRIPT/utils
 
 SSID="DockerAP"
 PASSPHRASE="dockerap123"
 SUBNET="192.168.7"
 IP_AP="192.168.7.1"
 NETMASK="/24"
-PATHSCRIPT=`pwd`
-PATHUTILS=$PATHSCRIPT/utils
 NAME="ap-container"
 
 # Use param 2 or default
@@ -44,6 +44,7 @@ print_banner () {
 
 #################################################################
 # init function							#
+#################################################################
 # setup the system (check running dnsmasq, nmcli, unblock wifi) #
 # iptables rule for ap						#
 # enable ip_forwarding						#
@@ -54,22 +55,22 @@ init () {
     ### Check if dnsmasq is running
     if ps aux | grep -v grep | grep dnsmasq > /dev/null
     then
-       echo [+] dnsmasq is running
+       echo [INFO] dnsmasq is running
        echo [+] Turning dnsmasq off
        killall dnsmasq
     else
-        echo [+] dnsmasq is stopped
+        echo [INFO] dnsmasq is stopped
     fi
 
     ### Check if network-manager is running
     if ps aux | grep -v grep | grep network-manager > /dev/null
     then
-        echo [+] Network manager is running
+        echo [INFO] Network manager is running
         echo [+] Turning nmcli wifi off
         # Fix hostapd bug in Ubuntu 14.04
         nmcli nm wifi off
     else
-        echo [+] Network manager is stopped
+        echo [INFO] Network manager is stopped
     fi
 
     # Unblock wifi and bring the wireless interface up
@@ -113,6 +114,7 @@ EOF
 
 #################################################################
 # service_start function					#
+#################################################################
 # start the docker container (--net=none)			#
 # allocate_ifaces.sh						#
   # allocate the wireless interface in the docker container	#
@@ -141,11 +143,13 @@ service_start () {
     echo [+] Enabling IP forwarding 
     ip netns exec $pid echo 1 > /proc/sys/net/ipv4/ip_forward
     ### start hostapd and dnsmasq in the container
+    echo [+] Starting hostapd and dnsmasq
     docker exec $NAME start_ap.sh   
 }
 
 #################################################################
 # service_stop function						#
+#################################################################
 # stop and remove the docker container 				#
 # deallocate_ifaces.sh						#
   # completes the cleaning of deallocation			#
@@ -156,9 +160,9 @@ service_start () {
 #################################################################
 service_stop () { 
     echo [-] Stopping $NAME...
-    docker stop $NAME
+    docker stop $NAME > /dev/null 2>&1 
     echo [-] Removing $NAME...
-    docker rm $NAME
+    docker rm $NAME > /dev/null 2>&1 
 #    ip addr del $IP_AP$NETMASK dev $IFACE
     echo [-] Reversing iptables configuration...
     iptables -t nat -D POSTROUTING -s $SUBNET.0$NETMASK ! -d $SUBNET.0$NETMASK -j MASQUERADE
