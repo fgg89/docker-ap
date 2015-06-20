@@ -9,8 +9,8 @@ The docker container has exclusive access to the physical wireless interface (fo
 Default configuration
 ---------------------
 
-SSID = **DockerAP**
-passphrase = **dockerap123**
+* SSID = **DockerAP**
+* passphrase = **dockerap123**
 
 ## Usage
 
