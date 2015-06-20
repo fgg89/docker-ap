@@ -6,6 +6,12 @@ The script should be run as sudo. The first time the script is executed, it will
 
 The docker container has exclusive access to the physical wireless interface (for more info please visit: https://github.com/fgg89/docker-ap/wiki/Container-access-to-wireless-network-interface)
 
+Default configuration
+---------------------
+
+SSID = **DockerAP**
+passphrase = **dockerap123**
+
 ## Usage
 
 ```
@@ -43,7 +49,7 @@ hw_mode=g
 channel=1
 
 wpa=2
-wpa_passphrase=chooseastrongpassword
+wpa_passphrase=dockerap123
 wpa_key_mgmt=WPA-PSK WPA-EAP
 
 logger_syslog=-1

@@ -127,7 +127,7 @@ EOF
 service_start () { 
     echo [+] Starting the docker container
     # docker run --rm -t -i --name $NAME --net=host --privileged -v $PATHSCRIPT/hostapd.conf:/etc/hostapd/hostapd.conf -v $PATHSCRIPT/dnsmasq.conf:/etc/dnsmasq.conf fgg89/ubuntu-ap /sbin/my_init -- bash -l
-    docker run -d --name $NAME --net=none --privileged -v $PATHSCRIPT/hostapd.conf:/etc/hostapd/hostapd.conf -v $PATHSCRIPT/dnsmasq.conf:/etc/dnsmasq.conf docker-ap /sbin/my_init > /dev/null 2>&1
+    docker run -d --name $NAME --net=none --privileged -v $PATHSCRIPT/hostapd.conf:/etc/hostapd/hostapd.conf -v $PATHSCRIPT/dnsmasq.conf:/etc/dnsmasq.conf fgg89/docker-ap /sbin/my_init > /dev/null 2>&1
     pid=`docker inspect -f '{{.State.Pid}}' $NAME`
     bash $PATHUTILS/allocate_ifaces.sh $pid $PHY 
     
