@@ -16,6 +16,7 @@
 ### Variables
 PATHSCRIPT=`pwd`
 PATHUTILS=$PATHSCRIPT/utils
+IMAGE_NAME="fgg89/docker-ap"
 
 SSID="DockerAP"
 PASSPHRASE="dockerap123"
@@ -52,12 +53,25 @@ print_banner () {
 #################################################################
 init () {
 
+    # Checking if the docker image has been already pulled
+    # TODO: Can be improved
+    IMG=`docker inspect --format "{{.ContainerConfig.Image}}" $IMAGE_NAME > /dev/null 2>&1`
+    if [ "$IMG" == "docker-ap" ] 
+    then
+        echo [INFO] Docker image $IMAGE_NAME found
+    else
+        echo [INFO] Docker image $IMAGE_NAME not found
+        echo [+] "Pulling $IMAGE_NAME (This may take a while...)"
+        docker pull $IMAGE_NAME > /dev/null 2>&1
+    fi
+
     ### Check if dnsmasq is running
     if ps aux | grep -v grep | grep dnsmasq > /dev/null
     then
        echo [INFO] dnsmasq is running
        echo [+] Turning dnsmasq off
        killall dnsmasq
+       # TODO: The host now lost internet connection...
     else
         echo [INFO] dnsmasq is stopped
     fi
@@ -110,6 +124,7 @@ no-dhcp-interface=lo
 dhcp-range=$SUBNET.20,$SUBNET.254,255.255.255.0,12h
 EOF
 
+
 }
 
 #################################################################
@@ -124,10 +139,11 @@ EOF
 # enable ip_forwarding						#
 # start hostapd and dnsmasq in the container			#
 #################################################################
+
 service_start () { 
     echo [+] Starting the docker container
     # docker run --rm -t -i --name $NAME --net=host --privileged -v $PATHSCRIPT/hostapd.conf:/etc/hostapd/hostapd.conf -v $PATHSCRIPT/dnsmasq.conf:/etc/dnsmasq.conf fgg89/ubuntu-ap /sbin/my_init -- bash -l
-    docker run -d --name $NAME --net=none --privileged -v $PATHSCRIPT/hostapd.conf:/etc/hostapd/hostapd.conf -v $PATHSCRIPT/dnsmasq.conf:/etc/dnsmasq.conf fgg89/docker-ap /sbin/my_init > /dev/null 2>&1
+    docker run -d --name $NAME --net=none --privileged -v $PATHSCRIPT/hostapd.conf:/etc/hostapd/hostapd.conf -v $PATHSCRIPT/dnsmasq.conf:/etc/dnsmasq.conf $IMAGE_NAME /sbin/my_init > /dev/null 2>&1
     pid=`docker inspect -f '{{.State.Pid}}' $NAME`
     bash $PATHUTILS/allocate_ifaces.sh $pid $PHY 
     
@@ -171,6 +187,8 @@ service_stop () {
     echo [-] Removing conf files...
     rm $PATHSCRIPT/hostapd.conf
     rm $PATHSCRIPT/dnsmasq.conf
+    echo [+] Enabling dnsmasq...
+    service dnsmasq restart
 }
 
 
