@@ -7,13 +7,30 @@
 #author		 :Fran Gonzalez
 #date            :20150520
 #version         :0.1    
-#usage		 :bash docker_ap.sh <interface> <start|stop>
+#usage		 :bash docker_ap.sh <start|stop> <interface>
 #notes           :Install iptables (with nat kernel module) and docker to use this
 #                 script.
 #bash_version    :
 #==============================================================================all 
 
-### Variables
+ROOT_UID="0"
+
+#Check if run as root
+if [ "$UID" -ne "$ROOT_UID" ] ; then
+	echo "You must be root to run this script!"
+  	exit 1
+fi
+
+# Argument check
+if [ "$#" -eq 0 ]
+then
+    echo "Usage: $0 <start|stop> [wlan_iface]"
+    exit 1
+fi
+
+
+### Global variables
+
 PATHSCRIPT=`pwd`
 PATHUTILS=$PATHSCRIPT/utils
 IMAGE_NAME="fgg89/docker-ap"
@@ -26,7 +43,7 @@ NETMASK="/24"
 NAME="ap-container"
 
 # Use param 2 or default
-IFACE=${2:-wlan5}
+IFACE=${2:-wlan0}
 
 PHY=`cat /sys/class/net/$IFACE/phy80211/name`
 
@@ -53,9 +70,11 @@ print_banner () {
 #################################################################
 init () {
 
+	# TODO: Check that the provided wlan exists
+
     # Checking if the docker image has been already pulled
-    # TODO: Can be improved
-    IMG=`docker inspect --format "{{.ContainerConfig.Image}}" $IMAGE_NAME > /dev/null 2>&1`
+    # FIXME: Can be improved
+    IMG=`docker inspect --format "{{.ContainerConfig.Image}}" $IMAGE_NAME`
     if [ "$IMG" == "docker-ap" ] 
     then
         echo [INFO] Docker image $IMAGE_NAME found
@@ -65,27 +84,36 @@ init () {
         docker pull $IMAGE_NAME > /dev/null 2>&1
     fi
 
-    ### Check if dnsmasq is running
-    if ps aux | grep -v grep | grep dnsmasq > /dev/null
+    ### Check if hostapd is running in the host
+    if ps aux | grep -v grep | grep hostapd > /dev/null
     then
-       echo [INFO] dnsmasq is running
-       echo [+] Turning dnsmasq off
-       killall dnsmasq
-       # TODO: The host now lost internet connection...
+       echo [INFO] hostapd is running
+       killall hostapd
     else
-        echo [INFO] dnsmasq is stopped
+        echo [INFO] hostapd is stopped
     fi
 
+    ### Check if dnsmasq is running in the host
+#    if ps aux | grep -v grep | grep dnsmasq > /dev/null
+#    then
+#       echo [INFO] dnsmasq is running
+#       echo [+] Turning dnsmasq off
+#       killall dnsmasq
+#       # TODO: The host now lost internet connection (add nameserver 8.8.8.8)
+#    else
+#        echo [INFO] dnsmasq is stopped
+#    fi
+
     ### Check if network-manager is running
-    if ps aux | grep -v grep | grep network-manager > /dev/null
-    then
-        echo [INFO] Network manager is running
-        echo [+] Turning nmcli wifi off
-        # Fix hostapd bug in Ubuntu 14.04
-        nmcli nm wifi off
-    else
-        echo [INFO] Network manager is stopped
-    fi
+#    if ps aux | grep -v grep | grep network-manager > /dev/null
+#    then
+#        echo [INFO] Network manager is running
+#        echo [+] Turning nmcli wifi off
+#        # Fix hostapd bug in Ubuntu 14.04
+#        nmcli nm wifi off
+#    else
+#        echo [INFO] Network manager is stopped
+#    fi
 
     # Unblock wifi and bring the wireless interface up
     rfkill unblock wifi
@@ -112,6 +140,7 @@ logger_syslog=-1
 logger_syslog_level=2
 logger_stdout=-1
 logger_stdout_level=2
+ctrl_interface=/var/run/hostapd
 EOF
 
 echo [+] Generating dnsmasq.conf 
@@ -192,14 +221,6 @@ service_stop () {
 }
 
 
-#################################################################
-#			MAIN					#
-#################################################################
-#if [ "$#" -ne 2 ]; then
-#    echo "Usage: docker_ap.sh <interface> <start|stop>"
-#    exit 1
-#fi 
-
 if [ "$1" == "start" ]
 then
     clear
@@ -213,7 +234,8 @@ then
     bash $PATHUTILS/deallocate_ifaces.sh
 elif [ "$1" == "help" ]
 then
-    echo "Usage: docker_ap <start|stop> [wlan_iface]"
+    echo "Usage: $0 <start|stop> [wlan_iface]"
 else
     echo "Please enter a valid argument"
+    echo "Usage: $0 <start|stop> <interface>"
 fi

@@ -9,7 +9,7 @@
 #==============================================================================all
 
 if [ "$#" -ne 0 ]; then
-    echo "Usage: deallocate-ifaces.sh"
+    echo "Usage: $0"
     exit 1
 fi
 

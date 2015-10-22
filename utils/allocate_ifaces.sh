@@ -9,7 +9,7 @@
 #bash_version    :
 #==============================================================================all 
 if [ "$#" -ne 2 ]; then
-    echo "Usage: allocate-ifaces.sh <pid> <wlan_phy>"
+    echo "Usage: $0 <pid> <wlan_phy>"
     exit 1
 fi
 
