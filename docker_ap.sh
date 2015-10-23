@@ -45,11 +45,8 @@ NAME="ap-container"
 
 DNS_SERVER="8.8.8.8"
 
-# Second argument is the wireless interface
-IFACE=${2}
-
-# Find the physical interface for the given wireless interface
-PHY=`cat /sys/class/net/$IFACE/phy80211/name`
+IFACE=""
+PHY=""
 
 ##### print_banner function	#####
 print_banner () {
@@ -109,11 +106,11 @@ init () {
 
 	### Generating hostapd conf file
 	echo [+] Generating hostapd.conf
-	sed -e "s/_SSID/$SSID/g" -e "s/_IFACE/$IFACE/" -e "s/_CHANNEL/$CHANNEL/g" -e "s/_PASSPHRASE/$PASSPHRASE/g" $PATHSCRIPT/hostapd.template > $PATHSCRIPT/hostapd.conf
+	sed -e "s/_SSID/$SSID/g" -e "s/_IFACE/$IFACE/" -e "s/_CHANNEL/$CHANNEL/g" -e "s/_PASSPHRASE/$PASSPHRASE/g" $PATHSCRIPT/templates/hostapd.template > $PATHSCRIPT/hostapd.conf
 
 	### Generating dnsmasq conf file
 	echo [+] Generating dnsmasq.conf 
-	sed -e "s/_DNS_SERVER/$DNS_SERVER/g" -e "s/_IFACE/$IFACE/" -e "s/_SUBNET_FIRST/$SUBNET.20/g" -e "s/_SUBNET_END/$SUBNET.254/g" $PATHSCRIPT/dnsmasq.template > $PATHSCRIPT/dnsmasq.conf
+	sed -e "s/_DNS_SERVER/$DNS_SERVER/g" -e "s/_IFACE/$IFACE/" -e "s/_SUBNET_FIRST/$SUBNET.20/g" -e "s/_SUBNET_END/$SUBNET.254/g" $PATHSCRIPT/templates/dnsmasq.template > $PATHSCRIPT/dnsmasq.conf
 
 }
 
@@ -177,8 +174,20 @@ service_stop () {
 
 if [ "$1" == "start" ]
 then
+	if [[ -z "$2" ]]
+	then
+		echo [ERROR] No interface provided. Exiting...
+		exit 1
+	fi
     clear
-    print_banner
+
+	# Second argument is the wireless interface
+	IFACE=${2}
+
+	# Find the physical interface for the given wireless interface
+	PHY=`cat /sys/class/net/$IFACE/phy80211/name`
+    
+	print_banner
     init
     service_start
 elif [ "$1" == "stop" ]
