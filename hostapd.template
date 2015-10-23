@@ -1,0 +1,12 @@
+ssid=_SSID
+interface=_IFACE
+hw_mode=g
+channel=_CHANNEL
+wpa=2
+wpa_passphrase=_PASSPHRASE
+wpa_key_mgmt=WPA-PSK
+logger_syslog=-1
+logger_syslog_level=2
+logger_stdout=-1
+logger_stdout_level=2
+ctrl_interface=/var/run/hostapd

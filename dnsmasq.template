@@ -1,0 +1,5 @@
+no-resolv 
+server=_DNS_SERVER
+interface=lo,_IFACE
+no-dhcp-interface=lo
+dhcp-range=_SUBNET_FIRST,_SUBNET_END,255.255.255.0,12h

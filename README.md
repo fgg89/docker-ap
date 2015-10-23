@@ -56,6 +56,7 @@ logger_syslog=-1
 logger_syslog_level=2
 logger_stdout=-1
 logger_stdout_level=2
+ctrl_interface=/var/run/hostapd
 ```
 
 The ssid, wpa_passphrase, interface and subnetwork are initially hardcoded as variables in the script.
