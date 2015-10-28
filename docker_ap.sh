@@ -11,9 +11,19 @@
 #notes           :Install iptables (with nat kernel module) and docker to use this
 #                 script.
 #bash_version    :4.3.11(1)-release (x86_64-pc-linux-gnu)
+#dependencies	 :docker, iw, grep, rfkill, iptables, cat, ip
 #==============================================================================all 
 
 ROOT_UID="0"
+BLACK='\e[0;30m'
+RED='\e[0;31m'
+GREEN='\e[0;32m'
+YELLOW='\e[0;33m'
+BLUE='\e[0;34m'
+MAGENTA='\e[0;35m'
+CYAN='\e[0;36m'
+WHITE='\e[0;37m'
+NC='\e[0m'
 
 #Check if run as root
 if [ "$UID" -ne "$ROOT_UID" ] ; then
@@ -33,7 +43,8 @@ fi
 
 PATHSCRIPT=`pwd`
 PATHUTILS=$PATHSCRIPT/utils
-IMAGE_NAME="fgg89/docker-ap"
+DOCKER_IMAGE="fgg89/docker-ap"
+DOCKER_IMAGE_NAME="docker-ap"
 
 SSID="DockerAP"
 PASSPHRASE="dockerap123"
@@ -41,9 +52,10 @@ SUBNET="192.168.7"
 IP_AP="192.168.7.1"
 NETMASK="/24"
 CHANNEL="6"
-NAME="ap-container"
+DOCKER_NAME="ap-container"
 
 DNS_SERVER="8.8.8.8"
+
 
 IFACE=""
 PHY=""
@@ -68,48 +80,53 @@ init () {
 
 	# Number of phy interfaces
 	NUM_PHYS=`iw dev | grep phy | wc -l`
-	echo [INFO] Number of physical wireless interfaces connected: $NUM_PHYS
+	echo -e "${BLUE}[INFO]${NC} Number of physical wireless interfaces connected: $NUM_PHYS"
 	
-	# TODO: Check that the requested iface is available
+	# Check that the requested iface is available
+	if ! [ -e /sys/class/net/$IFACE ]
+	then
+		echo -e "${RED}[ERROR]${NC} The interface provided does not exist. Exiting..."
+		exit 1
+	fi
 
     # Checking if the docker image has been already pulled
-    IMG=`docker inspect --format "{{.ContainerConfig.Image}}" $IMAGE_NAME`
-    if [ "$IMG" == "docker-ap" ] 
+    IMG=`docker inspect --format "{{.ContainerConfig.Image}}" $DOCKER_IMAGE`
+    if [ "$IMG" == $DOCKER_IMAGE_NAME ] 
     then
-        echo [INFO] Docker image $IMAGE_NAME found
+        echo -e "${BLUE}[INFO]${NC} Docker image ${GREEN}$DOCKER_IMAGE${NC} found"
     else
-        echo [INFO] Docker image $IMAGE_NAME not found
-        echo [+] "Pulling $IMAGE_NAME (This may take a while...)"
-        docker pull $IMAGE_NAME > /dev/null 2>&1
+        echo -e "${BLUE}[INFO]${NC} Docker image ${RED}$DOCKER_IMAGE${NC} not found"
+        echo -e "[+] Pulling ${GREEN}$DOCKER_IMAGE${NC} (This may take a while...)"
+        docker pull $DOCKER_IMAGE > /dev/null 2>&1
     fi
 
     ### Check if hostapd is running in the host
     if ps aux | grep -v grep | grep hostapd > /dev/null
     then
-       echo [INFO] hostapd is running
+       echo -e "${BLUE}[INFO]${NC} ${GREEN}hostapd${NC} is running"
        killall hostapd
     else
-        echo [INFO] hostapd is stopped
+        echo -e "${BLUE}[INFO]${NC} ${GREEN}hostapd${NC} is stopped"
     fi
 
     # Unblock wifi and bring the wireless interface up
     rfkill unblock wifi
     ifconfig $IFACE up
 
-    echo [+] Adding natting rule to iptables
+	echo "[+] Adding natting rule to iptables (host)"
     iptables -t nat -A POSTROUTING -s $SUBNET.0$NETMASK ! -d $SUBNET.0$NETMASK -j MASQUERADE
     
 	### Enable IP forwarding
-    echo [+] Enabling IP forwarding 
+    echo "[+] Enabling IP forwarding (host)" 
     echo 1 > /proc/sys/net/ipv4/ip_forward
 
 
 	### Generating hostapd conf file
-	echo [+] Generating hostapd.conf
+	echo -e "[+] Generating ${GREEN}hostapd.conf${NC}"
 	sed -e "s/_SSID/$SSID/g" -e "s/_IFACE/$IFACE/" -e "s/_CHANNEL/$CHANNEL/g" -e "s/_PASSPHRASE/$PASSPHRASE/g" $PATHSCRIPT/templates/hostapd.template > $PATHSCRIPT/hostapd.conf
 
 	### Generating dnsmasq conf file
-	echo [+] Generating dnsmasq.conf 
+	echo -e "[+] Generating ${GREEN}dnsmasq.conf${NC}" 
 	sed -e "s/_DNS_SERVER/$DNS_SERVER/g" -e "s/_IFACE/$IFACE/" -e "s/_SUBNET_FIRST/$SUBNET.20/g" -e "s/_SUBNET_END/$SUBNET.254/g" $PATHSCRIPT/templates/dnsmasq.template > $PATHSCRIPT/dnsmasq.conf
 
 }
@@ -124,26 +141,31 @@ init () {
 # enable ip_forwarding
 # start hostapd and dnsmasq in the container
 service_start () { 
-    echo [+] Starting the docker container
+    echo -e "[+] Starting the docker container with name ${GREEN}$DOCKER_NAME${NC}"
     # docker run --rm -t -i --name $NAME --net=host --privileged -v $PATHSCRIPT/hostapd.conf:/etc/hostapd/hostapd.conf -v $PATHSCRIPT/dnsmasq.conf:/etc/dnsmasq.conf fgg89/ubuntu-ap /sbin/my_init -- bash -l
-    docker run -d --name $NAME --net=none --privileged -v $PATHSCRIPT/hostapd.conf:/etc/hostapd/hostapd.conf -v $PATHSCRIPT/dnsmasq.conf:/etc/dnsmasq.conf $IMAGE_NAME /sbin/my_init > /dev/null 2>&1
-    pid=`docker inspect -f '{{.State.Pid}}' $NAME`
+    docker run -d --name $DOCKER_NAME --net=none --privileged -v $PATHSCRIPT/hostapd.conf:/etc/hostapd/hostapd.conf -v $PATHSCRIPT/dnsmasq.conf:/etc/dnsmasq.conf $DOCKER_IMAGE /sbin/my_init > /dev/null 2>&1
+    pid=`docker inspect -f '{{.State.Pid}}' $DOCKER_NAME`
+	# To configure the networking (if --net=none is not used, this is not needed)
+    echo -e "${BLUE}[INFO]${NC} ${GREEN}$IFACE${NC} will be consumed now by the docker container"
+    echo -e "${BLUE}[INFO]${NC} Configuring the eth in the docker container and attaching it to the default docker bridge"
     bash $PATHUTILS/allocate_ifaces.sh $pid $PHY 
     
-    ### Assign IP to the wifi interface
-    echo [+] Configuring $IFACE with IP address $IP_AP 
+    ### Assign an IP to the wifi interface
+    echo -e "[+] Configuring ${GREEN}$IFACE${NC} with IP address ${GREEN}$IP_AP${NC}"
 #    ip addr flush dev $IFACE
     ip netns exec $pid ip link set $IFACE up
     ip netns exec $pid ip addr add $IP_AP$NETMASK dev $IFACE
-    ### iptables rules for NAT
-    echo [+] Adding natting rule to iptables
+
+	### iptables rules for NAT
+    echo "[+] Adding natting rule to iptables (container)"
     ip netns exec $pid iptables -t nat -A POSTROUTING -s $SUBNET.0$NETMASK ! -d $SUBNET.0$NETMASK -j MASQUERADE
-    ### Enable IP forwarding
-    echo [+] Enabling IP forwarding 
+    
+	### Enable IP forwarding
+    echo "[+] Enabling IP forwarding (container)"
     ip netns exec $pid echo 1 > /proc/sys/net/ipv4/ip_forward
     ### start hostapd and dnsmasq in the container
-    echo [+] Starting hostapd and dnsmasq
-    docker exec $NAME start_ap.sh   
+    echo -e "[+] Starting ${GREEN}hostapd${NC} and ${GREEN}dnsmasq${NC} in the docker container ${GREEN}$DOCKER_NAME${NC}"
+    docker exec $DOCKER_NAME start_ap.sh   
 
 }
 
@@ -156,22 +178,28 @@ service_start () {
 # disable ip_forwarding in host
 # remove the conf files for hostapd and dnsmasq
 service_stop () { 
-    echo [-] Stopping $NAME...
-    docker stop $NAME > /dev/null 2>&1 
-    echo [-] Removing $NAME...
-    docker rm $NAME > /dev/null 2>&1 
+    echo -e "[-] Stopping ${GREEN}$DOCKER_NAME${NC}..."
+    docker stop $DOCKER_NAME > /dev/null 2>&1 
+    echo -e "[-] Removing ${GREEN}$DOCKER_NAME${NC}..."
+    docker rm $DOCKER_NAME > /dev/null 2>&1 
 #    ip addr del $IP_AP$NETMASK dev $IFACE
     echo [-] Reversing iptables configuration...
-    iptables -t nat -D POSTROUTING -s $SUBNET.0$NETMASK ! -d $SUBNET.0$NETMASK -j MASQUERADE
+    iptables -t nat -D POSTROUTING -s $SUBNET.0$NETMASK ! -d $SUBNET.0$NETMASK -j MASQUERADE > /dev/null 2>&1
     echo [-] Disabling ip forwarding...
     echo 0 > /proc/sys/net/ipv4/ip_forward
     echo [-] Removing conf files...
-    rm $PATHSCRIPT/hostapd.conf
-    rm $PATHSCRIPT/dnsmasq.conf
-
+	if [ -e $PATHSCRIPT/hostapd.conf ]
+	then
+		rm $PATHSCRIPT/hostapd.conf
+	fi
+	if [ -e $PATHSCRIPT/dnsmasq.conf ]
+	then
+    	rm $PATHSCRIPT/dnsmasq.conf
+	fi
 }
 
 
+##### MAIN #####
 if [ "$1" == "start" ]
 then
 	if [[ -z "$2" ]]
