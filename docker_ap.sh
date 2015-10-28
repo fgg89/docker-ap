@@ -1,20 +1,18 @@
 #!/bin/bash -       
 #title           :docker_ap.sh
-#description     :This script will configure an Ubuntu system for running wireless
-#                 access point inside a docker container.
+#description     :This script will configure an Ubuntu system for running a 
+#				  wireless access point inside a docker container.
 #                 The docker container has unique access to the physical wireless 
-#                 interface (--net=none). 
+#                 interface. 
 #author			 :Fran Gonzalez
 #date            :20150520
 #version         :0.1    
 #usage			 :bash docker_ap.sh <start|stop> <interface>
-#notes           :Install iptables (with nat kernel module) and docker to use this
-#                 script.
 #bash_version    :4.3.11(1)-release (x86_64-pc-linux-gnu)
-#dependencies	 :docker, iw, grep, rfkill, iptables, cat, ip
+#dependencies	 :docker, iw, grep, rfkill, iptables (with nat kernel module),
+#				  cat, ip
 #==============================================================================all 
 
-ROOT_UID="0"
 BLACK='\e[0;30m'
 RED='\e[0;31m'
 GREEN='\e[0;32m'
@@ -25,26 +23,14 @@ CYAN='\e[0;36m'
 WHITE='\e[0;37m'
 NC='\e[0m'
 
-#Check if run as root
-if [ "$UID" -ne "$ROOT_UID" ] ; then
-	echo "You must be root to run this script!"
-  	exit 1
-fi
-
-# Argument check
-#if [ "$#" -eq 0 or "$#" -gt 2 ]
-if [ "$#" -eq 0 ] || [ "$#" -gt 2 ] 
-then
-    echo "Usage: $0 <start|stop> [wlan_iface]"
-    exit 1
-fi
-
-##### Global variables #####
+ROOT_UID="0"
 
 PATHSCRIPT=`pwd`
 PATHUTILS=$PATHSCRIPT/utils
+
 DOCKER_IMAGE="fgg89/docker-ap"
 DOCKER_IMAGE_NAME="docker-ap"
+DOCKER_NAME="ap-container"
 
 SSID="DockerAP"
 PASSPHRASE="dockerap123"
@@ -52,15 +38,24 @@ SUBNET="192.168.7"
 IP_AP="192.168.7.1"
 NETMASK="/24"
 CHANNEL="6"
-DOCKER_NAME="ap-container"
-
 DNS_SERVER="8.8.8.8"
-
 
 IFACE=""
 PHY=""
 
-##### print_banner function	#####
+# Check run as root
+if [ "$UID" -ne "$ROOT_UID" ] ; then
+	echo "You must be root to run this script!"
+  	exit 1
+fi
+
+# Argument check
+if [ "$#" -eq 0 ] || [ "$#" -gt 2 ] 
+then
+    echo "Usage: $0 <start|stop> [wlan_iface]"
+    exit 1
+fi
+
 print_banner () {
 
     echo " ___          _               _   ___"  
@@ -71,16 +66,11 @@ print_banner () {
 
 }
 
-##### init function	#####
-# setup the system (check running dnsmasq, nmcli, unblock wifi)
-# iptables rule for ap
-# enable ip_forwarding
-# generate conf files for hostapd and dnsmasq
 init () {
 
 	# Number of phy interfaces
 	NUM_PHYS=`iw dev | grep phy | wc -l`
-	echo -e "${BLUE}[INFO]${NC} Number of physical wireless interfaces connected: $NUM_PHYS"
+	echo -e "${BLUE}[INFO]${NC} Number of physical wireless interfaces connected: ${GREEN}$NUM_PHYS${NC}"
 	
 	# Check that the requested iface is available
 	if ! [ -e /sys/class/net/$IFACE ]
@@ -103,13 +93,14 @@ init () {
     ### Check if hostapd is running in the host
     if ps aux | grep -v grep | grep hostapd > /dev/null
     then
-       echo -e "${BLUE}[INFO]${NC} ${GREEN}hostapd${NC} is running"
+       echo -e "${BLUE}[INFO]${NC} hostapd is running"
        killall hostapd
     else
-        echo -e "${BLUE}[INFO]${NC} ${GREEN}hostapd${NC} is stopped"
+        echo -e "${BLUE}[INFO]${NC} hostapd is stopped"
     fi
 
     # Unblock wifi and bring the wireless interface up
+    echo -e "${BLUE}[INFO]${NC} Unblocking wifi and setting ${IFACE} up"
     rfkill unblock wifi
     ifconfig $IFACE up
 
@@ -120,39 +111,30 @@ init () {
     echo "[+] Enabling IP forwarding (host)" 
     echo 1 > /proc/sys/net/ipv4/ip_forward
 
-
 	### Generating hostapd conf file
-	echo -e "[+] Generating ${GREEN}hostapd.conf${NC}"
+	echo -e "[+] Generating hostapd.conf"
 	sed -e "s/_SSID/$SSID/g" -e "s/_IFACE/$IFACE/" -e "s/_CHANNEL/$CHANNEL/g" -e "s/_PASSPHRASE/$PASSPHRASE/g" $PATHSCRIPT/templates/hostapd.template > $PATHSCRIPT/hostapd.conf
 
 	### Generating dnsmasq conf file
-	echo -e "[+] Generating ${GREEN}dnsmasq.conf${NC}" 
+	echo -e "[+] Generating dnsmasq.conf" 
 	sed -e "s/_DNS_SERVER/$DNS_SERVER/g" -e "s/_IFACE/$IFACE/" -e "s/_SUBNET_FIRST/$SUBNET.20/g" -e "s/_SUBNET_END/$SUBNET.254/g" $PATHSCRIPT/templates/dnsmasq.template > $PATHSCRIPT/dnsmasq.conf
 
 }
 
-##### service_start function #####
-# start the docker container (--net=none)
-# allocate_ifaces.sh
-  # allocate the wireless interface in the docker container
-  # allocate a pair of veth for internet access
-# give an ip to the wireless interface
-# iptables rule for ap
-# enable ip_forwarding
-# start hostapd and dnsmasq in the container
+
 service_start () { 
     echo -e "[+] Starting the docker container with name ${GREEN}$DOCKER_NAME${NC}"
     # docker run --rm -t -i --name $NAME --net=host --privileged -v $PATHSCRIPT/hostapd.conf:/etc/hostapd/hostapd.conf -v $PATHSCRIPT/dnsmasq.conf:/etc/dnsmasq.conf fgg89/ubuntu-ap /sbin/my_init -- bash -l
     docker run -d --name $DOCKER_NAME --net=none --privileged -v $PATHSCRIPT/hostapd.conf:/etc/hostapd/hostapd.conf -v $PATHSCRIPT/dnsmasq.conf:/etc/dnsmasq.conf $DOCKER_IMAGE /sbin/my_init > /dev/null 2>&1
     pid=`docker inspect -f '{{.State.Pid}}' $DOCKER_NAME`
 	# To configure the networking (if --net=none is not used, this is not needed)
-    echo -e "${BLUE}[INFO]${NC} ${GREEN}$IFACE${NC} will be consumed now by the docker container"
-    echo -e "${BLUE}[INFO]${NC} Configuring the eth in the docker container and attaching it to the default docker bridge"
+    echo -e "${BLUE}[INFO]${NC} $IFACE is now exclusively handled to the docker container"
+    echo -e "[+] Configuring wiring in the docker container and attaching its eth to the default docker bridge"
     bash $PATHUTILS/allocate_ifaces.sh $pid $PHY 
     
     ### Assign an IP to the wifi interface
     echo -e "[+] Configuring ${GREEN}$IFACE${NC} with IP address ${GREEN}$IP_AP${NC}"
-#    ip addr flush dev $IFACE
+    ip netns exec $pid ip addr flush dev $IFACE
     ip netns exec $pid ip link set $IFACE up
     ip netns exec $pid ip addr add $IP_AP$NETMASK dev $IFACE
 
@@ -169,20 +151,12 @@ service_start () {
 
 }
 
-##### service_stop function	#####
-# stop and remove the docker container
-# deallocate_ifaces.sh
-  # completes the cleaning of deallocation
-# give an ip to the wireless interface
-# remove iptables rule for ap in host
-# disable ip_forwarding in host
-# remove the conf files for hostapd and dnsmasq
+
 service_stop () { 
     echo -e "[-] Stopping ${GREEN}$DOCKER_NAME${NC}..."
     docker stop $DOCKER_NAME > /dev/null 2>&1 
     echo -e "[-] Removing ${GREEN}$DOCKER_NAME${NC}..."
     docker rm $DOCKER_NAME > /dev/null 2>&1 
-#    ip addr del $IP_AP$NETMASK dev $IFACE
     echo [-] Reversing iptables configuration...
     iptables -t nat -D POSTROUTING -s $SUBNET.0$NETMASK ! -d $SUBNET.0$NETMASK -j MASQUERADE > /dev/null 2>&1
     echo [-] Disabling ip forwarding...
@@ -199,7 +173,6 @@ service_stop () {
 }
 
 
-##### MAIN #####
 if [ "$1" == "start" ]
 then
 	if [[ -z "$2" ]]
@@ -209,7 +182,6 @@ then
 	fi
     clear
 
-	# Second argument is the wireless interface
 	IFACE=${2}
 
 	# Find the physical interface for the given wireless interface
