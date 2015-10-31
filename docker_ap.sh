@@ -45,8 +45,8 @@ PHY=""
 
 # Check run as root
 if [ "$UID" -ne "$ROOT_UID" ] ; then
-	echo "You must be root to run this script!"
-  	exit 1
+    echo "You must be root to run this script!"
+    exit 1
 fi
 
 # Argument check
@@ -68,17 +68,17 @@ print_banner () {
 
 init () {
 
-	# Number of phy interfaces
-	NUM_PHYS=`iw dev | grep phy | wc -l`
-	echo -e "${BLUE}[INFO]${NC} Number of physical wireless interfaces connected: ${GREEN}$NUM_PHYS${NC}"
-	
-	# Check that the requested iface is available
-	if ! [ -e /sys/class/net/$IFACE ]
-	then
-		echo -e "${RED}[ERROR]${NC} The interface provided does not exist. Exiting..."
-		exit 1
-	fi
-
+    # Number of phy interfaces
+    NUM_PHYS=`iw dev | grep phy | wc -l`
+    echo -e "${BLUE}[INFO]${NC} Number of physical wireless interfaces connected: ${GREEN}$NUM_PHYS${NC}"
+    
+    # Check that the requested iface is available
+    if ! [ -e /sys/class/net/$IFACE ]
+    then
+        echo -e "${RED}[ERROR]${NC} The interface provided does not exist. Exiting..."
+        exit 1
+    fi
+    
     # Checking if the docker image has been already pulled
     IMG=`docker inspect --format "{{.ContainerConfig.Image}}" $DOCKER_IMAGE`
     if [ "$IMG" == $DOCKER_IMAGE_NAME ] 
@@ -104,20 +104,20 @@ init () {
     rfkill unblock wifi
     ifconfig $IFACE up
 
-	echo "[+] Adding natting rule to iptables (host)"
+    echo "[+] Adding natting rule to iptables (host)"
     iptables -t nat -A POSTROUTING -s $SUBNET.0$NETMASK ! -d $SUBNET.0$NETMASK -j MASQUERADE
     
-	### Enable IP forwarding
+    ### Enable IP forwarding
     echo "[+] Enabling IP forwarding (host)" 
     echo 1 > /proc/sys/net/ipv4/ip_forward
 
-	### Generating hostapd conf file
-	echo -e "[+] Generating hostapd.conf"
-	sed -e "s/_SSID/$SSID/g" -e "s/_IFACE/$IFACE/" -e "s/_CHANNEL/$CHANNEL/g" -e "s/_PASSPHRASE/$PASSPHRASE/g" $PATHSCRIPT/templates/hostapd.template > $PATHSCRIPT/hostapd.conf
+    ### Generating hostapd conf file
+    echo -e "[+] Generating hostapd.conf"
+    sed -e "s/_SSID/$SSID/g" -e "s/_IFACE/$IFACE/" -e "s/_CHANNEL/$CHANNEL/g" -e "s/_PASSPHRASE/$PASSPHRASE/g" $PATHSCRIPT/templates/hostapd.template > $PATHSCRIPT/hostapd.conf
 
-	### Generating dnsmasq conf file
-	echo -e "[+] Generating dnsmasq.conf" 
-	sed -e "s/_DNS_SERVER/$DNS_SERVER/g" -e "s/_IFACE/$IFACE/" -e "s/_SUBNET_FIRST/$SUBNET.20/g" -e "s/_SUBNET_END/$SUBNET.254/g" $PATHSCRIPT/templates/dnsmasq.template > $PATHSCRIPT/dnsmasq.conf
+    ### Generating dnsmasq conf file
+    echo -e "[+] Generating dnsmasq.conf" 
+    sed -e "s/_DNS_SERVER/$DNS_SERVER/g" -e "s/_IFACE/$IFACE/" -e "s/_SUBNET_FIRST/$SUBNET.20/g" -e "s/_SUBNET_END/$SUBNET.254/g" $PATHSCRIPT/templates/dnsmasq.template > $PATHSCRIPT/dnsmasq.conf
 
 }
 
@@ -127,7 +127,7 @@ service_start () {
     # docker run --rm -t -i --name $NAME --net=host --privileged -v $PATHSCRIPT/hostapd.conf:/etc/hostapd/hostapd.conf -v $PATHSCRIPT/dnsmasq.conf:/etc/dnsmasq.conf fgg89/ubuntu-ap /sbin/my_init -- bash -l
     docker run -d --name $DOCKER_NAME --net=none --privileged -v $PATHSCRIPT/hostapd.conf:/etc/hostapd/hostapd.conf -v $PATHSCRIPT/dnsmasq.conf:/etc/dnsmasq.conf $DOCKER_IMAGE /sbin/my_init > /dev/null 2>&1
     pid=`docker inspect -f '{{.State.Pid}}' $DOCKER_NAME`
-	# To configure the networking (if --net=none is not used, this is not needed)
+    # To configure the networking (if --net=none is not used, this is not needed)
     echo -e "${BLUE}[INFO]${NC} $IFACE is now exclusively handled to the docker container"
     echo -e "[+] Configuring wiring in the docker container and attaching its eth to the default docker bridge"
     bash $PATHUTILS/allocate_ifaces.sh $pid $PHY 
@@ -138,11 +138,11 @@ service_start () {
     ip netns exec $pid ip link set $IFACE up
     ip netns exec $pid ip addr add $IP_AP$NETMASK dev $IFACE
 
-	### iptables rules for NAT
+    ### iptables rules for NAT
     echo "[+] Adding natting rule to iptables (container)"
     ip netns exec $pid iptables -t nat -A POSTROUTING -s $SUBNET.0$NETMASK ! -d $SUBNET.0$NETMASK -j MASQUERADE
     
-	### Enable IP forwarding
+    ### Enable IP forwarding
     echo "[+] Enabling IP forwarding (container)"
     ip netns exec $pid echo 1 > /proc/sys/net/ipv4/ip_forward
     ### start hostapd and dnsmasq in the container
@@ -164,30 +164,30 @@ service_stop () {
     echo [-] Removing conf files...
 	if [ -e $PATHSCRIPT/hostapd.conf ]
 	then
-		rm $PATHSCRIPT/hostapd.conf
+        rm $PATHSCRIPT/hostapd.conf
 	fi
 	if [ -e $PATHSCRIPT/dnsmasq.conf ]
 	then
-    	rm $PATHSCRIPT/dnsmasq.conf
+        rm $PATHSCRIPT/dnsmasq.conf
 	fi
 }
 
 
 if [ "$1" == "start" ]
 then
-	if [[ -z "$2" ]]
-	then
-		echo [ERROR] No interface provided. Exiting...
-		exit 1
-	fi
+    if [[ -z "$2" ]]
+    then
+        echo [ERROR] No interface provided. Exiting...
+        exit 1
+    fi
     clear
 
-	IFACE=${2}
+    IFACE=${2}
 
-	# Find the physical interface for the given wireless interface
-	PHY=`cat /sys/class/net/$IFACE/phy80211/name`
+    # Find the physical interface for the given wireless interface
+    PHY=`cat /sys/class/net/$IFACE/phy80211/name`
     
-	print_banner
+    print_banner
     init
     service_start
 elif [ "$1" == "stop" ]
