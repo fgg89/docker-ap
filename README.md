@@ -18,9 +18,7 @@ Default configuration
 ./docker_ap.sh interface <start|stop> [wlan_interface]
 ```
 
-If no wlan interface is specified, it will use wlan5 by default.
-
-It is recommended to stop the service with the script in order to revert the host configuration to its initial state (iptables, ip forwarding, etc).
+It is recommended to stop the service via the script option "stop".
 
 You can get into the container once it's been run by using the ``exec`` option in docker:
 
@@ -59,4 +57,3 @@ logger_stdout_level=2
 ctrl_interface=/var/run/hostapd
 ```
 
-The ssid, wpa_passphrase, interface and subnetwork are initially hardcoded as variables in the script.

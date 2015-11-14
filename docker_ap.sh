@@ -14,11 +14,11 @@
 #				  cat, ip, bridge-utils
 #=============================================================all 
 
-#BLACK='\e[0;30m'
 RED='\e[0;31m'
 GREEN='\e[0;32m'
-#YELLOW='\e[0;33m'
 BLUE='\e[0;34m'
+#YELLOW='\e[0;33m'
+#BLACK='\e[0;30m'
 #MAGENTA='\e[0;35m'
 #CYAN='\e[0;36m'
 #WHITE='\e[0;37m'
@@ -37,9 +37,15 @@ NETMASK="/24"
 CHANNEL="6"
 DNS_SERVER="8.8.8.8"
 
+if [ "$1" == "help" ]
+then
+    echo "Usage: $0 <start|stop> <interface>"
+    exit 0
+fi
+
 if [[ -z "$2" ]]
 then
-	echo "[ERROR] No interface provided. Exiting..."
+	echo -e "${RED}[ERROR]${NC} No interface provided. Exiting..."
 	exit 1
 fi
 
@@ -198,10 +204,6 @@ then
     
     service_stop
     bash "$PATHUTILS"/deallocate_ifaces.sh
-
-elif [ "$1" == "help" ]
-then
-    echo "Usage: $0 <start|stop> <interface>"
 
 else
     echo "Please enter a valid argument"
