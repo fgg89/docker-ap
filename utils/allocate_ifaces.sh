@@ -25,23 +25,23 @@ GW="172.17.0.1"
 
 # Assign phy wireless interface to the container 
 mkdir -p /var/run/netns
-ln -s /proc/$PID/ns/net /var/run/netns/$PID
+ln -s /proc/"$PID"/ns/net /var/run/netns/"$PID"
 
-iw phy $PHY set netns $PID
+iw phy "$PHY" set netns "$PID"
 
 # The rest is necessary ONLY if using --net=none in docker:
 
 # Create a pair of "peer" interfaces veth0 and veth1,
 # bind the veth0 end to the bridge, and bring it up
 ip link add veth0 type veth peer name veth1
-brctl addif $BRIDGE veth0
+brctl addif "$BRIDGE" veth0
 ip link set veth0 up
 
 # Place veth1 inside the container's network namespace,
-ip link set veth1 netns $PID
-ip netns exec $PID ip link set dev veth1 name eth0
-ip netns exec $PID ip link set eth0 address 12:34:56:78:9a:bc
-ip netns exec $PID ip link set eth0 up
-ip netns exec $PID ip addr add $WAN_IP dev eth0
-ip netns exec $PID ip route add default via $GW
+ip link set veth1 netns "$PID"
+ip netns exec "$PID" ip link set dev veth1 name eth0
+ip netns exec "$PID" ip link set eth0 address 12:34:56:78:9a:bc
+ip netns exec "$PID" ip link set eth0 up
+ip netns exec "$PID" ip addr add "$WAN_IP" dev eth0
+ip netns exec "$PID" ip route add default via "$GW"
 

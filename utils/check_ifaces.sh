@@ -17,7 +17,7 @@ done
 number_wifaces=$cnt
 echo "Interfaces available: ${wifaces[@]}"
 echo "Please select an interface:"
-select option in ${wifaces[@]}
+select option in "${wifaces[@]}"
 do
   # To be improved...
   case $option in
