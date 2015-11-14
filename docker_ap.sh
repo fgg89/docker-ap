@@ -1,17 +1,18 @@
 #!/bin/bash -       
 #title           :docker_ap.sh
-#description     :This script will configure an Ubuntu system for running a 
-#				  wireless access point inside a docker container.
-#                 The docker container has unique access to the physical wireless 
-#                 interface. 
+#description     :This script will configure an Ubuntu system
+#                 for running a wireless access point inside a
+#                 docker container.
+#                 The docker container has unique access to the
+#                 physical wireless interface. 
 #author			 :Fran Gonzalez
 #date            :20150520
 #version         :0.1    
 #usage			 :bash docker_ap.sh <start|stop> <interface>
 #bash_version    :4.3.11(1)-release (x86_64-pc-linux-gnu)
-#dependencies	 :docker, iw, grep, rfkill, iptables (with nat kernel module),
-#				  cat, ip
-#==============================================================================all 
+#dependencies	 :docker, iw, grep, rfkill, iptables (with nat),
+#				  cat, ip, bridge-utils
+#=============================================================all 
 
 BLACK='\e[0;30m'
 RED='\e[0;31m'
@@ -40,8 +41,17 @@ NETMASK="/24"
 CHANNEL="6"
 DNS_SERVER="8.8.8.8"
 
-IFACE=""
-PHY=""
+if [[ -z "$2" ]]
+then
+	echo [ERROR] No interface provided. Exiting...
+	exit 1
+fi
+clear
+
+IFACE=${2}
+
+# Find the physical interface for the given wireless interface
+PHY=`cat /sys/class/net/$IFACE/phy80211/name`
 
 # Check run as root
 if [ "$UID" -ne "$ROOT_UID" ] ; then
@@ -81,7 +91,7 @@ init () {
     
     # Checking if the docker image has been already pulled
     IMG=`docker inspect --format "{{.ContainerConfig.Image}}" $DOCKER_IMAGE`
-    if [ "$IMG" == $DOCKER_IMAGE_NAME ] 
+    if [ "$IMG" == $DOCKER_IMAGE ] 
     then
         echo -e "${BLUE}[INFO]${NC} Docker image ${GREEN}$DOCKER_IMAGE${NC} found"
     else
@@ -125,9 +135,9 @@ init () {
 service_start () { 
     echo -e "[+] Starting the docker container with name ${GREEN}$DOCKER_NAME${NC}"
     # docker run --rm -t -i --name $NAME --net=host --privileged -v $PATHSCRIPT/hostapd.conf:/etc/hostapd/hostapd.conf -v $PATHSCRIPT/dnsmasq.conf:/etc/dnsmasq.conf fgg89/ubuntu-ap /sbin/my_init -- bash -l
-    docker run -d --name $DOCKER_NAME --net=none --privileged -v $PATHSCRIPT/hostapd.conf:/etc/hostapd/hostapd.conf -v $PATHSCRIPT/dnsmasq.conf:/etc/dnsmasq.conf $DOCKER_IMAGE /sbin/my_init > /dev/null 2>&1
+    docker run -d --name $DOCKER_NAME --privileged -v $PATHSCRIPT/hostapd.conf:/etc/hostapd/hostapd.conf -v $PATHSCRIPT/dnsmasq.conf:/etc/dnsmasq.conf $DOCKER_IMAGE /sbin/my_init > /dev/null 2>&1
     pid=`docker inspect -f '{{.State.Pid}}' $DOCKER_NAME`
-    # To configure the networking (if --net=none is not used, this is not needed)
+    # To configure the networking (this is not necessary if --net=none is not used)
     echo -e "${BLUE}[INFO]${NC} $IFACE is now exclusively handled to the docker container"
     echo -e "[+] Configuring wiring in the docker container and attaching its eth to the default docker bridge"
     bash $PATHUTILS/allocate_ifaces.sh $pid $PHY 
@@ -147,7 +157,7 @@ service_start () {
     ip netns exec $pid echo 1 > /proc/sys/net/ipv4/ip_forward
     ### start hostapd and dnsmasq in the container
     echo -e "[+] Starting ${GREEN}hostapd${NC} and ${GREEN}dnsmasq${NC} in the docker container ${GREEN}$DOCKER_NAME${NC}"
-    docker exec $DOCKER_NAME start_ap.sh   
+    docker exec $DOCKER_NAME start_ap
 
 }
 
@@ -162,30 +172,21 @@ service_stop () {
     echo [-] Disabling ip forwarding...
     echo 0 > /proc/sys/net/ipv4/ip_forward
     echo [-] Removing conf files...
-	if [ -e $PATHSCRIPT/hostapd.conf ]
-	then
+    if [ -e $PATHSCRIPT/hostapd.conf ]
+    then
         rm $PATHSCRIPT/hostapd.conf
-	fi
-	if [ -e $PATHSCRIPT/dnsmasq.conf ]
-	then
+    fi
+    if [ -e $PATHSCRIPT/dnsmasq.conf ]
+    then
         rm $PATHSCRIPT/dnsmasq.conf
-	fi
+    fi
+    echo [-] Removing IP address in $IFACE...
+    ip addr del $IP_AP$NETMASK dev $IFACE > /dev/null 2>&1
 }
 
 
 if [ "$1" == "start" ]
 then
-    if [[ -z "$2" ]]
-    then
-        echo [ERROR] No interface provided. Exiting...
-        exit 1
-    fi
-    clear
-
-    IFACE=${2}
-
-    # Find the physical interface for the given wireless interface
-    PHY=`cat /sys/class/net/$IFACE/phy80211/name`
     
     print_banner
     init
