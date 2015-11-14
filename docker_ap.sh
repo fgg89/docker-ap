@@ -10,7 +10,7 @@
 #version         :0.1    
 #usage			 :bash docker_ap.sh <start|stop> <interface>
 #bash_version    :4.3.11(1)-release (x86_64-pc-linux-gnu)
-#dependencies	 :docker, iw, grep, rfkill, iptables (with nat),
+#dependencies	 :docker, iw, pgrep, grep, rfkill, iptables,
 #				  cat, ip, bridge-utils
 #=============================================================all 
 
@@ -23,16 +23,12 @@ BLUE='\e[0;34m'
 #CYAN='\e[0;36m'
 #WHITE='\e[0;37m'
 NC='\e[0m'
-
 ROOT_UID="0"
-
 PATHSCRIPT=$(pwd)
 PATHUTILS=$PATHSCRIPT/utils
-
 DOCKER_IMAGE="fgg89/docker-ap"
 #DOCKER_IMAGE_NAME="docker-ap"
 DOCKER_NAME="ap-container"
-
 SSID="DockerAP"
 PASSPHRASE="dockerap123"
 SUBNET="192.168.7"
@@ -46,12 +42,8 @@ then
 	echo "[ERROR] No interface provided. Exiting..."
 	exit 1
 fi
-clear
 
 IFACE=${2}
-
-# Find the physical interface for the given wireless interface
-PHY=$(cat /sys/class/net/"$IFACE"/phy80211/name)
 
 # Check run as root
 if [ "$UID" -ne "$ROOT_UID" ] ; then
@@ -78,6 +70,9 @@ print_banner () {
 
 init () {
 
+    # Find the physical interface for the given wireless interface
+    PHY=$(cat /sys/class/net/"$IFACE"/phy80211/name)
+    
     # Number of phy interfaces
     NUM_PHYS=$(iw dev | grep -c phy)
     echo -e "${BLUE}[INFO]${NC} Number of physical wireless interfaces connected: ${GREEN}$NUM_PHYS${NC}"
@@ -102,10 +97,11 @@ init () {
 
     ### Check if hostapd is running in the host
     #if ps aux | grep -v grep | grep hostapd > /dev/null
-    if pgrep hostapd > /dev/null
+    hostapd_pid=$(pgrep hostapd)
+    if [ ! "$hostapd_pid" == "" ] 
     then
        echo -e "${BLUE}[INFO]${NC} hostapd is running"
-       killall hostapd
+       kill -9 "$hostapd_pid"
     else
         echo -e "${BLUE}[INFO]${NC} hostapd is stopped"
     fi
@@ -134,13 +130,15 @@ init () {
 
 
 service_start () { 
+    
     echo -e "[+] Starting the docker container with name ${GREEN}$DOCKER_NAME${NC}"
     # docker run --rm -t -i --name $NAME --net=host --privileged -v $PATHSCRIPT/hostapd.conf:/etc/hostapd/hostapd.conf -v $PATHSCRIPT/dnsmasq.conf:/etc/dnsmasq.conf fgg89/ubuntu-ap /sbin/my_init -- bash -l
-    docker run -d --name $DOCKER_NAME --privileged -v "$PATHSCRIPT"/hostapd.conf:/etc/hostapd/hostapd.conf -v "$PATHSCRIPT"/dnsmasq.conf:/etc/dnsmasq.conf $DOCKER_IMAGE /sbin/my_init > /dev/null 2>&1
+    docker run -d --name $DOCKER_NAME --net=none --privileged -v "$PATHSCRIPT"/hostapd.conf:/etc/hostapd/hostapd.conf -v "$PATHSCRIPT"/dnsmasq.conf:/etc/dnsmasq.conf $DOCKER_IMAGE /sbin/my_init > /dev/null 2>&1
     pid=$(docker inspect -f '{{.State.Pid}}' $DOCKER_NAME)
-    # To configure the networking (this is not necessary if --net=none is not used)
-    echo -e "${BLUE}[INFO]${NC} $IFACE is now exclusively handled to the docker container"
-    echo -e "[+] Configuring wiring in the docker container and attaching its eth to the default docker bridge"
+    # TODO: add option to print debug messages 
+    #echo -e "${BLUE}[INFO]${NC} $IFACE is now exclusively handled to the docker container"
+    #echo -e "[+] Configuring wiring in the docker container and attaching its eth to the default docker bridge"
+    # This is not necessary if --net=none is not used), however we'd still need to pass the wifi interface to the container
     bash "$PATHUTILS"/allocate_ifaces.sh "$pid" "$PHY" 
     
     ### Assign an IP to the wifi interface
@@ -164,15 +162,16 @@ service_start () {
 
 
 service_stop () { 
-    echo -e "[-] Stopping ${GREEN}$DOCKER_NAME${NC}..."
+    
+    echo -e "[-] Stopping ${GREEN}$DOCKER_NAME${NC}"
     docker stop $DOCKER_NAME > /dev/null 2>&1 
-    echo -e "[-] Removing ${GREEN}$DOCKER_NAME${NC}..."
+    echo -e "[-] Removing ${GREEN}$DOCKER_NAME${NC}"
     docker rm $DOCKER_NAME > /dev/null 2>&1 
-    echo [-] Reversing iptables configuration...
+    echo [-] Reversing iptables configuration
     iptables -t nat -D POSTROUTING -s $SUBNET.0$NETMASK ! -d $SUBNET.0$NETMASK -j MASQUERADE > /dev/null 2>&1
-    echo [-] Disabling ip forwarding...
+    echo [-] Disabling ip forwarding
     echo 0 > /proc/sys/net/ipv4/ip_forward
-    echo [-] Removing conf files...
+    echo [-] Removing conf files
     if [ -e "$PATHSCRIPT"/hostapd.conf ]
     then
         rm "$PATHSCRIPT"/hostapd.conf
@@ -181,25 +180,29 @@ service_stop () {
     then
         rm "$PATHSCRIPT"/dnsmasq.conf
     fi
-    echo [-] Removing IP address in "$IFACE"...
+    echo [-] Removing IP address in "$IFACE"
     ip addr del "$IP_AP$NETMASK" dev "$IFACE" > /dev/null 2>&1
 }
 
 
 if [ "$1" == "start" ]
 then
-    
+
+    clear    
     print_banner
     init
     service_start
+
 elif [ "$1" == "stop" ]
 then
-    clear
+    
     service_stop
     bash "$PATHUTILS"/deallocate_ifaces.sh
+
 elif [ "$1" == "help" ]
 then
     echo "Usage: $0 <start|stop> <interface>"
+
 else
     echo "Please enter a valid argument"
     echo "Usage: $0 <start|stop> <interface>"

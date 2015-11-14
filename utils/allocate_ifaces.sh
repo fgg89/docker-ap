@@ -11,6 +11,10 @@
 #bash_version    :
 #=============================================================all 
 
+BRIDGE="docker0"
+WAN_IP="172.17.0.99/16"
+GW="172.17.0.1"
+
 if [ "$#" -ne 2 ]; then
     echo "Usage: $0 <pid> <wlan_phy>"
     exit 1
@@ -19,14 +23,9 @@ fi
 PID=$1
 PHY=$2
 
-BRIDGE="docker0"
-WAN_IP="172.17.0.99/16"
-GW="172.17.0.1"
-
 # Assign phy wireless interface to the container 
 mkdir -p /var/run/netns
-ln -s /proc/"$PID"/ns/net /var/run/netns/"$PID"
-
+ln -s /proc/"$PID"/ns/net /var/run/netns/"$PID" 
 iw phy "$PHY" set netns "$PID"
 
 # The rest is necessary ONLY if using --net=none in docker:
@@ -36,7 +35,6 @@ iw phy "$PHY" set netns "$PID"
 ip link add veth0 type veth peer name veth1
 brctl addif "$BRIDGE" veth0
 ip link set veth0 up
-
 # Place veth1 inside the container's network namespace,
 ip link set veth1 netns "$PID"
 ip netns exec "$PID" ip link set dev veth1 name eth0
