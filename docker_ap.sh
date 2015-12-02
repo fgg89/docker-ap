@@ -203,7 +203,8 @@ elif [ "$1" == "stop" ]
 then
     
     service_stop
-    bash "$PATHUTILS"/deallocate_ifaces.sh
+	# Clean up dangling symlinks in /var/run/netns
+	find -L /var/run/netns -type l -delete
 
 else
     echo "Please enter a valid argument"
