@@ -177,7 +177,6 @@ service_start () {
     #echo -e "${BLUE}[INFO]${NC} $IFACE is now exclusively handled to the docker container"
     #echo -e "[+] Configuring wiring in the docker container and attaching its eth to the default docker bridge"
     # This is not necessary if --net=none is not used), however we'd still need to pass the wifi interface to the container
-    #bash "$PATHUTILS"/allocate_ifaces.sh "$pid" "$PHY" 
     allocate_ifaces $pid    
     ### Assign an IP to the wifi interface
     echo -e "[+] Configuring ${GREEN}$IFACE${NC} with IP address ${GREEN}$IP_AP${NC}"
