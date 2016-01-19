@@ -1,4 +1,5 @@
 #!/bin/bash        
+
 #title           :docker_ap.sh
 #description     :This script will configure an Ubuntu system
 #                 for running a wireless access point inside a
@@ -36,6 +37,9 @@ IP_AP="192.168.7.1"
 NETMASK="/24"
 CHANNEL="6"
 DNS_SERVER="8.8.8.8"
+BRIDGE="docker0"
+WAN_IP="172.17.0.99/16"
+GW="172.17.0.1"
 
 if [ "$1" == "help" ]
 then
@@ -91,6 +95,7 @@ init () {
     fi
     
     # Checking if the docker image has been already pulled
+    #IMG=$(docker inspect --format '{{.ContainerConfig.Image}}' $DOCKER_IMAGE > /dev/null 2>&1)
     IMG=$(docker inspect --format '{{.ContainerConfig.Image}}' $DOCKER_IMAGE)
     if [ "$IMG" == $DOCKER_IMAGE ] 
     then
@@ -135,6 +140,33 @@ init () {
 }
 
 
+allocate_ifaces () {
+
+	pid=$1
+
+    # Assign phy wireless interface to the container 
+    mkdir -p /var/run/netns
+    ln -s /proc/"$pid"/ns/net /var/run/netns/"$pid"
+    iw phy "$PHY" set netns "$pid"
+    
+    # The rest is necessary ONLY if using --net=none in docker:
+    
+    # Create a pair of "peer" interfaces veth0 and veth1,
+    # bind the veth0 end to the bridge, and bring it up
+    ip link add veth0 type veth peer name veth1
+    brctl addif "$BRIDGE" veth0
+    ip link set veth0 up
+    # Place veth1 inside the container's network namespace,
+    ip link set veth1 netns "$pid"
+    ip netns exec "$pid" ip link set dev veth1 name eth0
+    ip netns exec "$pid" ip link set eth0 address 12:34:56:78:9a:bc
+    ip netns exec "$pid" ip link set eth0 up
+    ip netns exec "$pid" ip addr add "$WAN_IP" dev eth0
+    ip netns exec "$pid" ip route add default via "$GW"
+
+}
+
+
 service_start () { 
     
     echo -e "[+] Starting the docker container with name ${GREEN}$DOCKER_NAME${NC}"
@@ -145,8 +177,8 @@ service_start () {
     #echo -e "${BLUE}[INFO]${NC} $IFACE is now exclusively handled to the docker container"
     #echo -e "[+] Configuring wiring in the docker container and attaching its eth to the default docker bridge"
     # This is not necessary if --net=none is not used), however we'd still need to pass the wifi interface to the container
-    bash "$PATHUTILS"/allocate_ifaces.sh "$pid" "$PHY" 
-    
+    #bash "$PATHUTILS"/allocate_ifaces.sh "$pid" "$PHY" 
+    allocate_ifaces $pid    
     ### Assign an IP to the wifi interface
     echo -e "[+] Configuring ${GREEN}$IFACE${NC} with IP address ${GREEN}$IP_AP${NC}"
     ip netns exec "$pid" ip addr flush dev "$IFACE"
