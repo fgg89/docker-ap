@@ -17,9 +17,9 @@
 
 #YELLOW='\e[0;33m'
 #BLACK='\e[0;30m'
-MAGENTA='\e[0;35m'
 #CYAN='\e[0;36m'
 #WHITE='\e[0;37m'
+MAGENTA='\e[0;35m'
 RED='\e[0;31m'
 GREEN='\e[0;32m'
 BLUE='\e[0;34m'
@@ -94,8 +94,8 @@ init () {
     #IMG=$(docker inspect --format '{{.ContainerConfig.Image}}' $DOCKER_IMAGE > /dev/null 2>&1)
     #IMG=$(docker inspect --format '{{.ContainerConfig.Image}}' $DOCKER_IMAGE)
     IMG_CHECK=$(docker images -q $DOCKER_IMAGE)
-	if [ "$IMG_CHECK" != "" ]
-	then
+    if [ "$IMG_CHECK" != "" ]
+    then
         echo -e "${BLUE}[INFO]${NC} Docker image ${GREEN}$DOCKER_IMAGE${NC} found"
     else
         echo -e "${BLUE}[INFO]${NC} Docker image ${RED}$DOCKER_IMAGE${NC} not found"
@@ -167,7 +167,8 @@ service_start () {
     # docker run --rm -t -i --name $NAME --net=host --privileged -v $PATHSCRIPT/hostapd.conf:/etc/hostapd/hostapd.conf -v $PATHSCRIPT/dnsmasq.conf:/etc/dnsmasq.conf fgg89/ubuntu-ap /sbin/my_init -- bash -l
     docker run -d --name $DOCKER_NAME --net=none --privileged -v "$PATHSCRIPT"/hostapd.conf:/etc/hostapd/hostapd.conf -v "$PATHSCRIPT"/dnsmasq.conf:/etc/dnsmasq.conf $DOCKER_IMAGE /sbin/my_init > /dev/null 2>&1
     pid=$(docker inspect -f '{{.State.Pid}}' $DOCKER_NAME)
-    #echo -e "${BLUE}[INFO]${NC} $IFACE is now exclusively handled to the docker container"
+    # TODO: debug messages
+	#echo -e "${BLUE}[INFO]${NC} $IFACE is now exclusively handled to the docker container"
     #echo -e "[+] Configuring wiring in the docker container and attaching its eth to the default docker bridge"
     # This is not necessary if --net=none is not used), however we'd still need to pass the wifi interface to the container
     allocate_ifaces "$pid"
