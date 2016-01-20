@@ -45,7 +45,7 @@ WAN_IP="172.17.0.99/16"
 GW="172.17.0.1"
 
 show_usage () {
-	echo "Usage: $0 <start|stop> [interface]"
+    echo "Usage: $0 <start|stop> [interface]"
     exit 1
 }
 
@@ -75,7 +75,7 @@ print_banner () {
 }
 
 init () {
-	IFACE="$1"
+    IFACE="$1"
     # Find the physical interface for the given wireless interface
     PHY=$(cat /sys/class/net/"$IFACE"/phy80211/name)
     
@@ -138,7 +138,7 @@ init () {
 }
 
 allocate_ifaces () {
-	pid=$1
+    pid=$1
 
     # Assign phy wireless interface to the container 
     mkdir -p /var/run/netns
@@ -162,7 +162,7 @@ allocate_ifaces () {
 }
 
 service_start () { 
-	IFACE="$1"
+    IFACE="$1"
     echo -e "[+] Starting the docker container with name ${GREEN}$DOCKER_NAME${NC}"
     # docker run --rm -t -i --name $NAME --net=host --privileged -v $PATHSCRIPT/hostapd.conf:/etc/hostapd/hostapd.conf -v $PATHSCRIPT/dnsmasq.conf:/etc/dnsmasq.conf fgg89/ubuntu-ap /sbin/my_init -- bash -l
     docker run -d --name $DOCKER_NAME --net=none --privileged -v "$PATHSCRIPT"/hostapd.conf:/etc/hostapd/hostapd.conf -v "$PATHSCRIPT"/dnsmasq.conf:/etc/dnsmasq.conf $DOCKER_IMAGE /sbin/my_init > /dev/null 2>&1
@@ -233,8 +233,8 @@ then
     fi
     IFACE=${2}
     service_stop "$IFACE"
-	# Clean up dangling symlinks in /var/run/netns
-	find -L /var/run/netns -type l -delete
+    # Clean up dangling symlinks in /var/run/netns
+    find -L /var/run/netns -type l -delete
 else
     echo "Usage: $0 <start|stop> <interface>"
 fi
