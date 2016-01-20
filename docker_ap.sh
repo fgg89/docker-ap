@@ -190,6 +190,7 @@ service_start () {
 }
 
 service_stop () { 
+    IFACE="$1"
     echo -e "[-] Stopping ${GREEN}$DOCKER_NAME${NC}"
     docker stop $DOCKER_NAME > /dev/null 2>&1 
     echo -e "[-] Removing ${GREEN}$DOCKER_NAME${NC}"
@@ -225,7 +226,13 @@ then
     service_start "$IFACE"
 elif [ "$1" == "stop" ]
 then
-    service_stop
+    if [[ -z "$2" ]]
+    then
+        echo -e "${RED}[ERROR]${NC} No interface provided. Exiting..."
+        exit 1
+    fi
+    IFACE=${2}
+    service_stop "$IFACE"
 	# Clean up dangling symlinks in /var/run/netns
 	find -L /var/run/netns -type l -delete
 else
