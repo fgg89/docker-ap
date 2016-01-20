@@ -17,7 +17,7 @@
 
 #YELLOW='\e[0;33m'
 #BLACK='\e[0;30m'
-#MAGENTA='\e[0;35m'
+MAGENTA='\e[0;35m'
 #CYAN='\e[0;36m'
 #WHITE='\e[0;37m'
 RED='\e[0;31m'
@@ -67,10 +67,10 @@ then
 fi
 
 print_banner () {
-    echo " ___          _               _   ___"  
-    echo "|   \ ___  __| |_____ _ _    /_\ | _ \\"
-    echo "| |) / _ \/ _| / / -_) '_|  / _ \|  _/"
-    echo "|___/\___/\__|_\_\___|_|   /_/ \_\_|  "
+    echo -e "${MAGENTA} ___          _               _   ___   ${NC}"
+    echo -e "${MAGENTA}|   \ ___  __| |_____ _ _    /_\ | _ \\ ${NC}"
+    echo -e "${MAGENTA}| |) / _ \/ _| / / -_) '_|  / _ \|  _/  ${NC}"
+    echo -e "${MAGENTA}|___/\___/\__|_\_\___|_|   /_/ \_\_|    ${NC}"
     echo ""
 }
 
