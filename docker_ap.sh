@@ -9,51 +9,50 @@
 #author			 :Fran Gonzalez
 #date            :20150520
 #version         :0.1    
-#usage			 :bash docker_ap.sh <start|stop> <interface>
+#usage			 :bash docker_ap <start|stop> [interface]
 #bash_version    :4.3.11(1)-release (x86_64-pc-linux-gnu)
 #dependencies	 :docker, iw, pgrep, grep, rfkill, iptables,
 #				  cat, ip, bridge-utils
 #=============================================================all 
 
-RED='\e[0;31m'
-GREEN='\e[0;32m'
-BLUE='\e[0;34m'
 #YELLOW='\e[0;33m'
 #BLACK='\e[0;30m'
 #MAGENTA='\e[0;35m'
 #CYAN='\e[0;36m'
 #WHITE='\e[0;37m'
+RED='\e[0;31m'
+GREEN='\e[0;32m'
+BLUE='\e[0;34m'
 NC='\e[0m'
-ROOT_UID="0"
+
 PATHSCRIPT=$(pwd)
-PATHUTILS=$PATHSCRIPT/utils
+
+ROOT_UID="0"
+
 DOCKER_IMAGE="fgg89/docker-ap"
-#DOCKER_IMAGE_NAME="docker-ap"
 DOCKER_NAME="ap-container"
+
 SSID="DockerAP"
 PASSPHRASE="dockerap123"
 SUBNET="192.168.7"
 IP_AP="192.168.7.1"
 NETMASK="/24"
 CHANNEL="6"
+
 DNS_SERVER="8.8.8.8"
 BRIDGE="docker0"
 WAN_IP="172.17.0.99/16"
 GW="172.17.0.1"
 
+show_usage () {
+	echo "Usage: $0 <start|stop> [interface]"
+    exit 1
+}
+
 if [ "$1" == "help" ]
 then
-    echo "Usage: $0 <start|stop> <interface>"
-    exit 0
+    show_usage
 fi
-
-if [[ -z "$2" ]]
-then
-	echo -e "${RED}[ERROR]${NC} No interface provided. Exiting..."
-	exit 1
-fi
-
-IFACE=${2}
 
 # Check run as root
 if [ "$UID" -ne "$ROOT_UID" ] ; then
@@ -64,22 +63,19 @@ fi
 # Argument check
 if [ "$#" -eq 0 ] || [ "$#" -gt 2 ] 
 then
-    echo "Usage: $0 <start|stop> [wlan_iface]"
-    exit 1
+    show_usage
 fi
 
 print_banner () {
-
     echo " ___          _               _   ___"  
     echo "|   \ ___  __| |_____ _ _    /_\ | _ \\"
     echo "| |) / _ \/ _| / / -_) '_|  / _ \|  _/"
     echo "|___/\___/\__|_\_\___|_|   /_/ \_\_|  "
     echo ""
-
 }
 
 init () {
-
+	IFACE="$1"
     # Find the physical interface for the given wireless interface
     PHY=$(cat /sys/class/net/"$IFACE"/phy80211/name)
     
@@ -96,14 +92,17 @@ init () {
     
     # Checking if the docker image has been already pulled
     #IMG=$(docker inspect --format '{{.ContainerConfig.Image}}' $DOCKER_IMAGE > /dev/null 2>&1)
-    IMG=$(docker inspect --format '{{.ContainerConfig.Image}}' $DOCKER_IMAGE)
-    if [ "$IMG" == $DOCKER_IMAGE ] 
-    then
+    #IMG=$(docker inspect --format '{{.ContainerConfig.Image}}' $DOCKER_IMAGE)
+    IMG_CHECK=$(docker images -q $DOCKER_IMAGE)
+	if [ "$IMG_CHECK" != "" ]
+	then
         echo -e "${BLUE}[INFO]${NC} Docker image ${GREEN}$DOCKER_IMAGE${NC} found"
     else
         echo -e "${BLUE}[INFO]${NC} Docker image ${RED}$DOCKER_IMAGE${NC} not found"
-        echo -e "[+] Pulling ${GREEN}$DOCKER_IMAGE${NC} (This may take a while...)"
-        docker pull $DOCKER_IMAGE > /dev/null 2>&1
+        echo -e "[+] Building the image ${GREEN}$DOCKER_IMAGE${NC} (This may take a while...)"
+        docker build --rm -t fgg89/docker-ap .
+        #echo -e "[+] Pulling ${GREEN}$DOCKER_IMAGE${NC} (This may take a while...)"
+        #docker pull $DOCKER_IMAGE > /dev/null 2>&1
     fi
 
     ### Check if hostapd is running in the host
@@ -136,12 +135,9 @@ init () {
     ### Generating dnsmasq conf file
     echo -e "[+] Generating dnsmasq.conf" 
     sed -e "s/_DNS_SERVER/$DNS_SERVER/g" -e "s/_IFACE/$IFACE/" -e "s/_SUBNET_FIRST/$SUBNET.20/g" -e "s/_SUBNET_END/$SUBNET.254/g" "$PATHSCRIPT"/templates/dnsmasq.template > "$PATHSCRIPT"/dnsmasq.conf
-
 }
 
-
 allocate_ifaces () {
-
 	pid=$1
 
     # Assign phy wireless interface to the container 
@@ -163,21 +159,18 @@ allocate_ifaces () {
     ip netns exec "$pid" ip link set eth0 up
     ip netns exec "$pid" ip addr add "$WAN_IP" dev eth0
     ip netns exec "$pid" ip route add default via "$GW"
-
 }
 
-
 service_start () { 
-    
+	IFACE="$1"
     echo -e "[+] Starting the docker container with name ${GREEN}$DOCKER_NAME${NC}"
     # docker run --rm -t -i --name $NAME --net=host --privileged -v $PATHSCRIPT/hostapd.conf:/etc/hostapd/hostapd.conf -v $PATHSCRIPT/dnsmasq.conf:/etc/dnsmasq.conf fgg89/ubuntu-ap /sbin/my_init -- bash -l
     docker run -d --name $DOCKER_NAME --net=none --privileged -v "$PATHSCRIPT"/hostapd.conf:/etc/hostapd/hostapd.conf -v "$PATHSCRIPT"/dnsmasq.conf:/etc/dnsmasq.conf $DOCKER_IMAGE /sbin/my_init > /dev/null 2>&1
     pid=$(docker inspect -f '{{.State.Pid}}' $DOCKER_NAME)
-    # TODO: add option to print debug messages 
     #echo -e "${BLUE}[INFO]${NC} $IFACE is now exclusively handled to the docker container"
     #echo -e "[+] Configuring wiring in the docker container and attaching its eth to the default docker bridge"
     # This is not necessary if --net=none is not used), however we'd still need to pass the wifi interface to the container
-    allocate_ifaces $pid    
+    allocate_ifaces "$pid"
     ### Assign an IP to the wifi interface
     echo -e "[+] Configuring ${GREEN}$IFACE${NC} with IP address ${GREEN}$IP_AP${NC}"
     ip netns exec "$pid" ip addr flush dev "$IFACE"
@@ -194,20 +187,17 @@ service_start () {
     ### start hostapd and dnsmasq in the container
     echo -e "[+] Starting ${GREEN}hostapd${NC} and ${GREEN}dnsmasq${NC} in the docker container ${GREEN}$DOCKER_NAME${NC}"
     docker exec "$DOCKER_NAME" start_ap
-
 }
 
-
 service_stop () { 
-    
     echo -e "[-] Stopping ${GREEN}$DOCKER_NAME${NC}"
     docker stop $DOCKER_NAME > /dev/null 2>&1 
     echo -e "[-] Removing ${GREEN}$DOCKER_NAME${NC}"
     docker rm $DOCKER_NAME > /dev/null 2>&1 
     echo [-] Reversing iptables configuration
     iptables -t nat -D POSTROUTING -s $SUBNET.0$NETMASK ! -d $SUBNET.0$NETMASK -j MASQUERADE > /dev/null 2>&1
-    echo [-] Disabling ip forwarding
-    echo 0 > /proc/sys/net/ipv4/ip_forward
+    #echo [-] Disabling ip forwarding
+    #echo 0 > /proc/sys/net/ipv4/ip_forward
     echo [-] Removing conf files
     if [ -e "$PATHSCRIPT"/hostapd.conf ]
     then
@@ -221,23 +211,23 @@ service_stop () {
     ip addr del "$IP_AP$NETMASK" dev "$IFACE" > /dev/null 2>&1
 }
 
-
 if [ "$1" == "start" ]
 then
-
+    if [[ -z "$2" ]]
+    then
+        echo -e "${RED}[ERROR]${NC} No interface provided. Exiting..."
+        exit 1
+    fi
+    IFACE=${2}
     clear    
     print_banner
-    init
-    service_start
-
+    init "$IFACE"
+    service_start "$IFACE"
 elif [ "$1" == "stop" ]
 then
-    
     service_stop
 	# Clean up dangling symlinks in /var/run/netns
 	find -L /var/run/netns -type l -delete
-
 else
-    echo "Please enter a valid argument"
     echo "Usage: $0 <start|stop> <interface>"
 fi
