@@ -60,7 +60,7 @@ show_usage () {
     exit 1
 }
 
-if [ "$1" == "help" ]
+if [ "$1" == "help" ] || [ "$#" -eq 0 ]
 then
     show_usage
 fi
