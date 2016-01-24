@@ -29,9 +29,6 @@ PATHSCRIPT=$(pwd)
 
 ROOT_UID="0"
 
-DOCKER_IMAGE="fgg89/docker-ap"
-DOCKER_NAME="ap-container"
-
 SSID="DockerAP"
 PASSPHRASE="dockerap123"
 SUBNET="192.168.7"
@@ -43,6 +40,20 @@ DNS_SERVER="8.8.8.8"
 BRIDGE="docker0"
 WAN_IP="172.17.0.99/16"
 GW="172.17.0.1"
+
+DOCKER_NAME="ap-container"
+
+ARCH=$(arch)
+if [ "$ARCH" == "armv7l" ]
+then
+    DOCKER_IMAGE="fgg89/armhf-docker-ap"
+elif [ "$ARCH" == "x86_64" ]
+then
+    DOCKER_IMAGE="fgg89/docker-ap"
+else
+    echo "Architecture not know. Exiting..."
+    exit 1
+fi
 
 show_usage () {
     echo "Usage: $0 <start|stop> [interface]"
@@ -91,22 +102,21 @@ init () {
     fi
     
     # Checking if the docker image has been already pulled
-    #IMG=$(docker inspect --format '{{.ContainerConfig.Image}}' $DOCKER_IMAGE > /dev/null 2>&1)
-    #IMG=$(docker inspect --format '{{.ContainerConfig.Image}}' $DOCKER_IMAGE)
     IMG_CHECK=$(docker images -q $DOCKER_IMAGE)
     if [ "$IMG_CHECK" != "" ]
     then
         echo -e "${BLUE}[INFO]${NC} Docker image ${GREEN}$DOCKER_IMAGE${NC} found"
     else
         echo -e "${BLUE}[INFO]${NC} Docker image ${RED}$DOCKER_IMAGE${NC} not found"
-        echo -e "[+] Building the image ${GREEN}$DOCKER_IMAGE${NC} (This may take a while...)"
-        docker build --rm -t fgg89/docker-ap .
-        #echo -e "[+] Pulling ${GREEN}$DOCKER_IMAGE${NC} (This may take a while...)"
-        #docker pull $DOCKER_IMAGE > /dev/null 2>&1
+		# Option 1: Building
+        #echo -e "[+] Building the image ${GREEN}$DOCKER_IMAGE${NC} (This may take a while...)"
+        #docker build --rm -t fgg89/docker-ap .
+		# Option 2: Pulling
+        echo -e "[+] Pulling ${GREEN}$DOCKER_IMAGE${NC} (This may take a while...)"
+        docker pull $DOCKER_IMAGE > /dev/null 2>&1
     fi
 
     ### Check if hostapd is running in the host
-    #if ps aux | grep -v grep | grep hostapd > /dev/null
     hostapd_pid=$(pgrep hostapd)
     if [ ! "$hostapd_pid" == "" ] 
     then
