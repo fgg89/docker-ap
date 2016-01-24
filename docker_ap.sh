@@ -44,7 +44,6 @@ GW="172.17.0.1"
 DOCKER_NAME="ap-container"
 
 ARCH=$(arch)
-echo -e "${BLUE}[INFO]${NC} Architecture: ${GREEN}$ARCH${NC}"
 if [ "$ARCH" == "armv7l" ]
 then
     DOCKER_IMAGE="fgg89/armhf-docker-ap"
@@ -91,7 +90,10 @@ init () {
     # Find the physical interface for the given wireless interface
     PHY=$(cat /sys/class/net/"$IFACE"/phy80211/name)
     
-    # Number of phy interfaces
+	# Architecture
+    echo -e "${BLUE}[INFO]${NC} Architecture: ${GREEN}$ARCH${NC}"
+    
+	# Number of phy interfaces
     NUM_PHYS=$(iw dev | grep -c phy)
     echo -e "${BLUE}[INFO]${NC} Number of physical wireless interfaces connected: ${GREEN}$NUM_PHYS${NC}"
     
