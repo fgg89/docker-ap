@@ -44,6 +44,7 @@ GW="172.17.0.1"
 DOCKER_NAME="ap-container"
 
 ARCH=$(arch)
+echo -e "${BLUE}[INFO]${NC} Architecture: ${GREEN}$ARCH${NC}"
 if [ "$ARCH" == "armv7l" ]
 then
     DOCKER_IMAGE="fgg89/armhf-docker-ap"
