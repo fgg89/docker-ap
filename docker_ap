@@ -87,15 +87,6 @@ print_banner () {
 
 init () {
     IFACE="$1"
-    # Find the physical interface for the given wireless interface
-    PHY=$(cat /sys/class/net/"$IFACE"/phy80211/name)
-    
-	# Architecture
-    echo -e "${BLUE}[INFO]${NC} Architecture: ${GREEN}$ARCH${NC}"
-    
-	# Number of phy interfaces
-    NUM_PHYS=$(iw dev | grep -c phy)
-    echo -e "${BLUE}[INFO]${NC} Number of physical wireless interfaces connected: ${GREEN}$NUM_PHYS${NC}"
     
     # Check that the requested iface is available
     if ! [ -e /sys/class/net/"$IFACE" ]
@@ -104,6 +95,16 @@ init () {
         exit 1
     fi
     
+    # Find the physical interface for the given wireless interface
+    PHY=$(cat /sys/class/net/"$IFACE"/phy80211/name)
+
+    # Architecture
+    echo -e "${BLUE}[INFO]${NC} Architecture: ${GREEN}$ARCH${NC}"
+    
+    # Number of phy interfaces
+    NUM_PHYS=$(iw dev | grep -c phy)
+    echo -e "${BLUE}[INFO]${NC} Number of physical wireless interfaces connected: ${GREEN}$NUM_PHYS${NC}"
+    
     # Checking if the docker image has been already pulled
     IMG_CHECK=$(docker images -q $DOCKER_IMAGE)
     if [ "$IMG_CHECK" != "" ]
@@ -111,10 +112,10 @@ init () {
         echo -e "${BLUE}[INFO]${NC} Docker image ${GREEN}$DOCKER_IMAGE${NC} found"
     else
         echo -e "${BLUE}[INFO]${NC} Docker image ${RED}$DOCKER_IMAGE${NC} not found"
-		# Option 1: Building
+        # Option 1: Building
         #echo -e "[+] Building the image ${GREEN}$DOCKER_IMAGE${NC} (This may take a while...)"
         #docker build --rm -t fgg89/docker-ap .
-		# Option 2: Pulling
+        # Option 2: Pulling
         echo -e "[+] Pulling ${GREEN}$DOCKER_IMAGE${NC} (This may take a while...)"
         docker pull $DOCKER_IMAGE > /dev/null 2>&1
     fi
