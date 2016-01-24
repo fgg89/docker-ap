@@ -57,3 +57,10 @@ logger_stdout_level=2
 ctrl_interface=/var/run/hostapd
 ```
 
+## Useful commands
+
+### Build docker image from a Dockerfile
+
+```
+docker build -f Dockerfile_x86 -t docker-ap .
+```
