@@ -113,11 +113,17 @@ init () {
     else
         echo -e "${BLUE}[INFO]${NC} Docker image ${RED}$DOCKER_IMAGE${NC} not found"
         # Option 1: Building
-        #echo -e "[+] Building the image ${GREEN}$DOCKER_IMAGE${NC} (This may take a while...)"
-        #docker build --rm -t fgg89/docker-ap .
+        echo -e "[+] Building the image ${GREEN}$DOCKER_IMAGE${NC} (Grab a coffee...)"
+        if [ "$ARCH" == "armv7l" ]
+        then
+            docker build --rm -t fgg89/docker-ap -f $PATHSCRIPT/build/Dockerfile_armv7 .
+        elif [ "$ARCH" == "x86_64" ]
+		then
+		    docker build --rm -t fgg89/docker-ap -f $PATHSCRIPT/build/Dockerfile_x86 .
+		fi
         # Option 2: Pulling
-        echo -e "[+] Pulling ${GREEN}$DOCKER_IMAGE${NC} (This may take a while...)"
-        docker pull $DOCKER_IMAGE > /dev/null 2>&1
+        #echo -e "[+] Pulling ${GREEN}$DOCKER_IMAGE${NC} (Grab a coffee...)"
+        #docker pull $DOCKER_IMAGE > /dev/null 2>&1
     fi
 
     ### Check if hostapd is running in the host
