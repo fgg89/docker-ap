@@ -29,9 +29,6 @@ PATHSCRIPT=$(pwd)
 
 ROOT_UID="0"
 
-DOCKER_IMAGE="fgg89/docker-ap"
-DOCKER_NAME="ap-container"
-
 SSID="DockerAP"
 PASSPHRASE="dockerap123"
 SUBNET="192.168.7"
@@ -44,12 +41,26 @@ BRIDGE="docker0"
 WAN_IP="172.17.0.99/16"
 GW="172.17.0.1"
 
+DOCKER_NAME="ap-container"
+
+ARCH=$(arch)
+if [ "$ARCH" == "armv7l" ]
+then
+    DOCKER_IMAGE="fgg89/armhf-docker-ap"
+elif [ "$ARCH" == "x86_64" ]
+then
+    DOCKER_IMAGE="fgg89/docker-ap"
+else
+    echo "Architecture not know. Exiting..."
+    exit 1
+fi
+
 show_usage () {
     echo "Usage: $0 <start|stop> [interface]"
     exit 1
 }
 
-if [ "$1" == "help" ]
+if [ "$1" == "help" ] || [ "$#" -eq 0 ]
 then
     show_usage
 fi
@@ -76,12 +87,6 @@ print_banner () {
 
 init () {
     IFACE="$1"
-    # Find the physical interface for the given wireless interface
-    PHY=$(cat /sys/class/net/"$IFACE"/phy80211/name)
-    
-    # Number of phy interfaces
-    NUM_PHYS=$(iw dev | grep -c phy)
-    echo -e "${BLUE}[INFO]${NC} Number of physical wireless interfaces connected: ${GREEN}$NUM_PHYS${NC}"
     
     # Check that the requested iface is available
     if ! [ -e /sys/class/net/"$IFACE" ]
@@ -90,23 +95,38 @@ init () {
         exit 1
     fi
     
+    # Find the physical interface for the given wireless interface
+    PHY=$(cat /sys/class/net/"$IFACE"/phy80211/name)
+
+    # Architecture
+    echo -e "${BLUE}[INFO]${NC} Architecture: ${GREEN}$ARCH${NC}"
+    
+    # Number of phy interfaces
+    NUM_PHYS=$(iw dev | grep -c phy)
+    echo -e "${BLUE}[INFO]${NC} Number of physical wireless interfaces connected: ${GREEN}$NUM_PHYS${NC}"
+    
     # Checking if the docker image has been already pulled
-    #IMG=$(docker inspect --format '{{.ContainerConfig.Image}}' $DOCKER_IMAGE > /dev/null 2>&1)
-    #IMG=$(docker inspect --format '{{.ContainerConfig.Image}}' $DOCKER_IMAGE)
     IMG_CHECK=$(docker images -q $DOCKER_IMAGE)
     if [ "$IMG_CHECK" != "" ]
     then
         echo -e "${BLUE}[INFO]${NC} Docker image ${GREEN}$DOCKER_IMAGE${NC} found"
     else
         echo -e "${BLUE}[INFO]${NC} Docker image ${RED}$DOCKER_IMAGE${NC} not found"
-        echo -e "[+] Building the image ${GREEN}$DOCKER_IMAGE${NC} (This may take a while...)"
-        docker build --rm -t fgg89/docker-ap .
-        #echo -e "[+] Pulling ${GREEN}$DOCKER_IMAGE${NC} (This may take a while...)"
+        # Option 1: Building
+        echo -e "[+] Building the image ${GREEN}$DOCKER_IMAGE${NC} (Grab a coffee...)"
+        if [ "$ARCH" == "armv7l" ]
+        then
+            docker build --rm -t fgg89/docker-ap -f $PATHSCRIPT/build/Dockerfile_armv7 .
+        elif [ "$ARCH" == "x86_64" ]
+		then
+		    docker build --rm -t fgg89/docker-ap -f $PATHSCRIPT/build/Dockerfile_x86 .
+		fi
+        # Option 2: Pulling
+        #echo -e "[+] Pulling ${GREEN}$DOCKER_IMAGE${NC} (Grab a coffee...)"
         #docker pull $DOCKER_IMAGE > /dev/null 2>&1
     fi
 
     ### Check if hostapd is running in the host
-    #if ps aux | grep -v grep | grep hostapd > /dev/null
     hostapd_pid=$(pgrep hostapd)
     if [ ! "$hostapd_pid" == "" ] 
     then
