@@ -1,6 +1,6 @@
 ssid=_SSID
 interface=_IFACE
-hw_mode=g
+hw_mode=_HW_MODE
 channel=_CHANNEL
 wpa=2
 wpa_passphrase=_PASSPHRASE

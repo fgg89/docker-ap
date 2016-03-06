@@ -1,66 +1,32 @@
 # docker-ap
 
-This script configures an Ubuntu-based system to act as a wireless access point. The AP runs inside a docker container.
+This script configures a Debian-based system to act as a wireless access point. The whole AP functionality runs inside a docker container.
 
-The script should be run as sudo. The first time the script is executed, it will pull the docker image from fgg89/ubuntu-ap repository. This docker image is based on baseimage (Please visit https://github.com/phusion/baseimage-docker for more info). The image contains the programs dnsmasq and hostapd. Their respective configuration files are generated on the fly and mounted in the docker container.
+The script should be run as sudo. The docker image ``fgg89/docker-ap`` will be built if it will not be found in the system. The docker image is based on baseimage (Please visit https://github.com/phusion/baseimage-docker for more info). The image contains the programs dnsmasq and hostapd. Their respective configuration files are generated on the fly and mounted in the docker container.
 
 The docker container has exclusive access to the physical wireless interface (for more info please visit: https://github.com/fgg89/docker-ap/wiki/Container-access-to-wireless-network-interface)
+
+Tested on: Ubuntu 14.04 LTS, Raspbian 8 (jessie)
+Supported architectures: x86_64, armv7
 
 Default configuration
 ---------------------
 
 * SSID = **DockerAP**
-* passphrase = **dockerap123**
+* Passphrase = **dockerap123**
 
 ## Usage
 
-```
-./docker_ap.sh interface <start|stop> [wlan_interface]
-```
-
-It is recommended to stop the service via the script option "stop".
-
-You can get into the container once it's been run by using the ``exec`` option in docker:
+Start the service:
 
 ```
-docker exec -it ap-container bash
+./docker_ap start [wlan_interface]
 ```
 
-## Example of configuration files
-
-### dnsmasq configuration
+Stop the service:
 
 ```
-no-resolv
-server=8.8.8.8
-interface=lo,wlan5
-no-dhcp-interface=lo
-dhcp-range=192.168.7.20,192.168.7.254,255.255.255.0,12h
+./docker_ap stop [wlan_interface]
 ```
 
-### hostapd configuration
 
-```
-ssid=DockerAP
-interface=wlan5
-hw_mode=g
-channel=1
-
-wpa=2
-wpa_passphrase=dockerap123
-wpa_key_mgmt=WPA-PSK WPA-EAP
-
-logger_syslog=-1
-logger_syslog_level=2
-logger_stdout=-1
-logger_stdout_level=2
-ctrl_interface=/var/run/hostapd
-```
-
-## Useful commands
-
-### Build docker image from a Dockerfile
-
-```
-docker build -f Dockerfile_x86 -t docker-ap .
-```
