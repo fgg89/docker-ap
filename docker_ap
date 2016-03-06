@@ -1,7 +1,7 @@
 #!/bin/bash        
 
 #title           :docker_ap.sh
-#description     :This script will configure an Ubuntu system
+#description     :This script will configure a Debian-based system
 #                 for running a wireless access point inside a
 #                 docker container.
 #                 The docker container has unique access to the
@@ -11,8 +11,8 @@
 #version         :0.1    
 #usage			 :bash docker_ap <start|stop> [interface]
 #bash_version    :4.3.11(1)-release (x86_64-pc-linux-gnu)
-#dependencies	 :docker, iw, pgrep, grep, rfkill, iptables,
-#				  cat, ip, bridge-utils
+#dependencies	 :docker, iw, pgrep, grep, iptables, cat, ip,
+#				  bridge-utils, rfkill
 #=============================================================all 
 
 #YELLOW='\e[0;33m'
@@ -24,26 +24,24 @@ RED='\e[0;31m'
 GREEN='\e[0;32m'
 BLUE='\e[0;34m'
 NC='\e[0m'
-
 PATHSCRIPT=$(pwd)
-
 ROOT_UID="0"
+ARCH=$(arch)
 
+# Service parameters
 SSID="DockerAP"
 PASSPHRASE="dockerap123"
 SUBNET="192.168.7"
 IP_AP="192.168.7.1"
 NETMASK="/24"
+HW_MODE="g"
 CHANNEL="6"
-
 DNS_SERVER="8.8.8.8"
 BRIDGE="docker0"
 WAN_IP="172.17.0.99/16"
 GW="172.17.0.1"
-
 DOCKER_NAME="ap-container"
 
-ARCH=$(arch)
 if [ "$ARCH" == "armv7l" ]
 then
     DOCKER_IMAGE="fgg89/armhf-docker-ap"
@@ -51,7 +49,7 @@ elif [ "$ARCH" == "x86_64" ]
 then
     DOCKER_IMAGE="fgg89/docker-ap"
 else
-    echo "Architecture not know. Exiting..."
+    echo "Currently supported architectures are x86_64 and armv7. Exiting..."
     exit 1
 fi
 
@@ -116,10 +114,10 @@ init () {
         echo -e "[+] Building the image ${GREEN}$DOCKER_IMAGE${NC} (Grab a coffee...)"
         if [ "$ARCH" == "armv7l" ]
         then
-            docker build --rm -t fgg89/docker-ap -f $PATHSCRIPT/build/Dockerfile_armv7 .
+            docker build --rm -t fgg89/docker-ap -f "$PATHSCRIPT"/build/Dockerfile_armv7 .
         elif [ "$ARCH" == "x86_64" ]
 		then
-		    docker build --rm -t fgg89/docker-ap -f $PATHSCRIPT/build/Dockerfile_x86 .
+		    docker build --rm -t fgg89/docker-ap -f "$PATHSCRIPT"/build/Dockerfile_x86 .
 		fi
         # Option 2: Pulling
         #echo -e "[+] Pulling ${GREEN}$DOCKER_IMAGE${NC} (Grab a coffee...)"
@@ -130,10 +128,8 @@ init () {
     hostapd_pid=$(pgrep hostapd)
     if [ ! "$hostapd_pid" == "" ] 
     then
-       echo -e "${BLUE}[INFO]${NC} hostapd is running"
-       kill -9 "$hostapd_pid"
-    else
-        echo -e "${BLUE}[INFO]${NC} hostapd is stopped"
+       echo -e "${BLUE}[INFO]${NC} hostapd service is already running in the system, you may want to stop it if you experience troubles..."
+       #kill -9 "$hostapd_pid"
     fi
 
     # Unblock wifi and bring the wireless interface up
@@ -141,18 +137,11 @@ init () {
     rfkill unblock wifi
     ifconfig "$IFACE" up
 
-    echo "[+] Adding natting rule to iptables (host)"
-    iptables -t nat -A POSTROUTING -s $SUBNET.0$NETMASK ! -d $SUBNET.0$NETMASK -j MASQUERADE
-    
-    ### Enable IP forwarding
-    echo "[+] Enabling IP forwarding (host)" 
-    echo 1 > /proc/sys/net/ipv4/ip_forward
-
-    ### Generating hostapd conf file
+    ### Generating hostapd.conf file
     echo -e "[+] Generating hostapd.conf"
-    sed -e "s/_SSID/$SSID/g" -e "s/_IFACE/$IFACE/" -e "s/_CHANNEL/$CHANNEL/g" -e "s/_PASSPHRASE/$PASSPHRASE/g" "$PATHSCRIPT"/templates/hostapd.template > "$PATHSCRIPT"/hostapd.conf
+    sed -e "s/_SSID/$SSID/g" -e "s/_IFACE/$IFACE/" -e "s/_HW_MODE/$HW_MODE/g" -e "s/_CHANNEL/$CHANNEL/g" -e "s/_PASSPHRASE/$PASSPHRASE/g" "$PATHSCRIPT"/templates/hostapd.template > "$PATHSCRIPT"/hostapd.conf
 
-    ### Generating dnsmasq conf file
+    ### Generating dnsmasq.conf file
     echo -e "[+] Generating dnsmasq.conf" 
     sed -e "s/_DNS_SERVER/$DNS_SERVER/g" -e "s/_IFACE/$IFACE/" -e "s/_SUBNET_FIRST/$SUBNET.20/g" -e "s/_SUBNET_END/$SUBNET.254/g" "$PATHSCRIPT"/templates/dnsmasq.template > "$PATHSCRIPT"/dnsmasq.conf
 }
@@ -187,7 +176,6 @@ service_start () {
     # docker run --rm -t -i --name $NAME --net=host --privileged -v $PATHSCRIPT/hostapd.conf:/etc/hostapd/hostapd.conf -v $PATHSCRIPT/dnsmasq.conf:/etc/dnsmasq.conf fgg89/ubuntu-ap /sbin/my_init -- bash -l
     docker run -d --name $DOCKER_NAME --net=none --privileged -v "$PATHSCRIPT"/hostapd.conf:/etc/hostapd/hostapd.conf -v "$PATHSCRIPT"/dnsmasq.conf:/etc/dnsmasq.conf $DOCKER_IMAGE /sbin/my_init > /dev/null 2>&1
     pid=$(docker inspect -f '{{.State.Pid}}' $DOCKER_NAME)
-    # TODO: debug messages
 	#echo -e "${BLUE}[INFO]${NC} $IFACE is now exclusively handled to the docker container"
     #echo -e "[+] Configuring wiring in the docker container and attaching its eth to the default docker bridge"
     # This is not necessary if --net=none is not used), however we'd still need to pass the wifi interface to the container
