@@ -6,8 +6,8 @@ The script should be run as sudo. The docker image ``fgg89/docker-ap`` will be b
 
 The docker container has exclusive access to the physical wireless interface (for more info please visit: https://github.com/fgg89/docker-ap/wiki/Container-access-to-wireless-network-interface)
 
-Tested on: Ubuntu 14.04 LTS, Raspbian 8 (jessie)
-Supported architectures: x86_64, armv7
+* Tested on: Ubuntu 14.04 LTS, Raspbian 8 (jessie)
+* Supported architectures: x86_64, armv7
 
 Default configuration
 ---------------------
