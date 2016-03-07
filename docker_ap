@@ -117,7 +117,7 @@ init () {
             docker build --rm -t fgg89/docker-ap -f "$PATHSCRIPT"/build/Dockerfile_armv7 .
         elif [ "$ARCH" == "x86_64" ]
 		then
-		    docker build --rm -t fgg89/docker-ap -f "$PATHSCRIPT"/build/Dockerfile_x86 .
+		    docker build --rm -t fgg89/docker-ap -f "$PATHSCRIPT"/build/Dockerfile_x86_64 .
 		fi
         # Option 2: Pulling
         #echo -e "[+] Pulling ${GREEN}$DOCKER_IMAGE${NC} (Grab a coffee...)"
@@ -204,10 +204,6 @@ service_stop () {
     docker stop $DOCKER_NAME > /dev/null 2>&1 
     echo -e "[-] Removing ${GREEN}$DOCKER_NAME${NC}"
     docker rm $DOCKER_NAME > /dev/null 2>&1 
-    echo [-] Reversing iptables configuration
-    iptables -t nat -D POSTROUTING -s $SUBNET.0$NETMASK ! -d $SUBNET.0$NETMASK -j MASQUERADE > /dev/null 2>&1
-    #echo [-] Disabling ip forwarding
-    #echo 0 > /proc/sys/net/ipv4/ip_forward
     echo [-] Removing conf files
     if [ -e "$PATHSCRIPT"/hostapd.conf ]
     then
