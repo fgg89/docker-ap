@@ -135,7 +135,7 @@ init () {
     # Unblock wifi and bring the wireless interface up
     echo -e "${BLUE}[INFO]${NC} Unblocking wifi and setting ${IFACE} up"
     rfkill unblock wifi
-    ifconfig "$IFACE" up
+    ip link set "$IFACE" up
 
     ### Generating hostapd.conf file
     echo -e "[+] Generating hostapd.conf"
