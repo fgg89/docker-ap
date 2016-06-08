@@ -176,7 +176,7 @@ service_start () {
     #docker run --rm -t --name $DOCKER_NAME --net=host --privileged -v $PATHSCRIPT/hostapd.conf:/etc/hostapd/hostapd.conf -v $PATHSCRIPT/dnsmasq.conf:/etc/dnsmasq.conf $DOCKER_IMAGE
     docker run -dt --name $DOCKER_NAME --net=none --privileged -v "$PATHSCRIPT"/hostapd.conf:/etc/hostapd/hostapd.conf -v "$PATHSCRIPT"/dnsmasq.conf:/etc/dnsmasq.conf $DOCKER_IMAGE > /dev/null 2>&1
     pid=$(docker inspect -f '{{.State.Pid}}' $DOCKER_NAME)
-	#echo -e "${BLUE}[INFO]${NC} $IFACE is now exclusively handled to the docker container"
+    #echo -e "${BLUE}[INFO]${NC} $IFACE is now exclusively handled to the docker container"
     #echo -e "[+] Configuring wiring in the docker container and attaching its eth to the default docker bridge"
     # This is not necessary if --net=none is not used), however we'd still need to pass the wifi interface to the container
     allocate_ifaces "$pid"
