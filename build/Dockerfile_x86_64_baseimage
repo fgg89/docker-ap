@@ -3,11 +3,14 @@
 # to `latest`! See
 # https://github.com/phusion/baseimage-docker/blob/master/Changelog.md
 # for a list of version numbers.
-FROM ubunut:14.04
+FROM phusion/baseimage:0.9.18
 MAINTAINER fran
 
+# Use baseimage-docker's init system.
+CMD ["/sbin/my_init"]
+
 # Update the repos
-RUN apt-get update && apt-get upgrade
+RUN apt-get update
 
 # Install salt-minion, configure its ID and start service at boot time
 RUN apt-get install -y hostapd dnsmasq 
@@ -17,5 +20,3 @@ RUN chmod u+x /usr/bin/start_ap
 
 # Clean up APT when done.
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-CMD ["/usr/bin/start_ap"]
