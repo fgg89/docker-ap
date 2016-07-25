@@ -215,6 +215,8 @@ service_stop () {
     fi
     echo [-] Removing IP address in "$IFACE"
     ip addr del "$IP_AP$NETMASK" dev "$IFACE" > /dev/null 2>&1
+    # Clean up dangling symlinks in /var/run/netns
+    find -L /var/run/netns -type l -delete
 }
 
 if [ "$1" == "start" ]
@@ -225,6 +227,7 @@ then
         exit 1
     fi
     IFACE=${2}
+    service_stop "$IFACE"
     clear    
     print_banner
     init "$IFACE"
@@ -238,8 +241,6 @@ then
     fi
     IFACE=${2}
     service_stop "$IFACE"
-    # Clean up dangling symlinks in /var/run/netns
-    find -L /var/run/netns -type l -delete
 else
     echo "Usage: $0 <start|stop> <interface>"
 fi
