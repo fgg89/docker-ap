@@ -10,7 +10,7 @@ MAINTAINER fgg89
 CMD ["/bin/bash"]
 
 # Update the repos
-RUN apt-get update
+RUN apt-get update && apt-get upgrade -y
 
 RUN apt-get install -y hostapd dnsmasq 
 RUN echo "#!/bin/bash\n### START dnsmasq\nservice dnsmasq start > /dev/null 2>&1\n### START hostapd\nservice hostapd start > /dev/null 2>&1" > /usr/bin/start_ap
