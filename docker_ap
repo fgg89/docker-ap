@@ -39,6 +39,8 @@ CHANNEL="6"
 DNS_SERVER="8.8.8.8"
 DOCKER_NAME="ap-container"
 
+CONF_FILE="wlan_config.txt"
+
 if [ "$ARCH" == "armv7l" ]
 then
     DOCKER_IMAGE="fgg89/armhf-docker-ap"
@@ -133,6 +135,28 @@ init () {
     echo -e "${BLUE}[INFO]${NC} Unblocking wifi and setting ${IFACE} up"
     rfkill unblock wifi
     ip link set "$IFACE" up
+
+    # Check if a wlan config file exists, else take wlan parameters by default
+    if [ -e "$PATHSCRIPT"/"$CONF_FILE" ]
+    then
+        echo -e "${BLUE}[INFO]${NC} Found WLAN config file"
+	    # Parse the wlan config file
+		IFS="="
+		while read -r name value
+		do
+            case $name in
+				''|\#* ) continue;; # Skip blank lines and lines starting with #
+                "SSID" )
+                    SSID=${value//\"/};;
+                "PASSPHRASE" )
+                    PASSPHRASE=${value//\"/};;
+                * )
+                    echo Parameter "$line" in "$PATHSCRIPT"/"$CONFIG_FILE" not recognized
+			esac
+		done < "$PATHSCRIPT"/"$CONF_FILE"
+	else
+        echo -e "${BLUE}[INFO]${NC} WLAN config file not found. Setting default WLAN parameters"
+	fi
 
     ### Generating hostapd.conf file
     echo -e "[+] Generating hostapd.conf"

@@ -1,0 +1,3 @@
+# Here goes your custom configuration
+SSID="DockerAP"
+PASSPHRASE="dockerap123"

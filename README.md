@@ -15,6 +15,8 @@ Default configuration
 * SSID = **DockerAP**
 * Passphrase = **dockerap123**
 
+The script will configure the AP with the previous settings. However, if you wish to set different ones then you should modify the ``wlan_config.txt`` file and adjust the parameters there.
+
 ## Usage
 
 Start the service:
