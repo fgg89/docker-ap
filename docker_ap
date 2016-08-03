@@ -28,17 +28,18 @@ PATHSCRIPT=$(pwd)
 ROOT_UID="0"
 ARCH=$(arch)
 
-# Service parameters
+# WLAN parameters
 SSID="DockerAP"
+HW_MODE="g"
+CHANNEL="6"
 PASSPHRASE="dockerap123"
+
+# Other parameters
 SUBNET="192.168.7"
 IP_AP="192.168.7.1"
 NETMASK="/24"
-HW_MODE="g"
-CHANNEL="6"
 DNS_SERVER="8.8.8.8"
 DOCKER_NAME="ap-container"
-
 CONF_FILE="wlan_config.txt"
 
 if [ "$ARCH" == "armv7l" ]
@@ -150,6 +151,10 @@ init () {
                     SSID=${value//\"/};;
                 "PASSPHRASE" )
                     PASSPHRASE=${value//\"/};;
+                "HW_MODE" )
+                    HW_MODE=${value//\"/};;
+                "CHANNEL" )
+                    CHANNEL=${value//\"/};;
                 * )
                     echo Parameter "$line" in "$PATHSCRIPT"/"$CONFIG_FILE" not recognized
 			esac
