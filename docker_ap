@@ -6,13 +6,13 @@
 #                 docker container.
 #                 The docker container has unique access to the
 #                 physical wireless interface. 
-#author			 :Fran Gonzalez
+#author          :Fran Gonzalez
 #date            :20150520
 #version         :0.1    
-#usage			 :bash docker_ap <start|stop> [interface]
+#usage           :bash docker_ap <start|stop> [interface]
 #bash_version    :4.3.11(1)-release (x86_64-pc-linux-gnu)
 #dependencies	 :docker, iw, pgrep, grep, iptables, cat, ip,
-#				  bridge-utils, rfkill
+#                 bridge-utils, rfkill
 #=============================================================all 
 
 #YELLOW='\e[0;33m'
@@ -37,9 +37,6 @@ NETMASK="/24"
 HW_MODE="g"
 CHANNEL="6"
 DNS_SERVER="8.8.8.8"
-BRIDGE="docker0"
-WAN_IP="172.17.0.99/16"
-GW="172.17.0.1"
 DOCKER_NAME="ap-container"
 
 if [ "$ARCH" == "armv7l" ]
@@ -128,7 +125,7 @@ init () {
     hostapd_pid=$(pgrep hostapd)
     if [ ! "$hostapd_pid" == "" ] 
     then
-       echo -e "${BLUE}[INFO]${NC} hostapd service is already running in the system, you may want to stop it if you experience troubles..."
+       echo -e "${BLUE}[INFO]${NC} hostapd service is already running in the system, make sure you use a different wireless interface..."
        #kill -9 "$hostapd_pid"
     fi
 
@@ -146,41 +143,18 @@ init () {
     sed -e "s/_DNS_SERVER/$DNS_SERVER/g" -e "s/_IFACE/$IFACE/" -e "s/_SUBNET_FIRST/$SUBNET.20/g" -e "s/_SUBNET_END/$SUBNET.254/g" "$PATHSCRIPT"/templates/dnsmasq.template > "$PATHSCRIPT"/dnsmasq.conf
 }
 
-allocate_ifaces () {
-    pid=$1
-
-    # Assign phy wireless interface to the container 
+service_start () { 
+    IFACE="$1"
+    echo -e "[+] Starting the docker container with name ${GREEN}$DOCKER_NAME${NC}"
+    docker run -dt --name $DOCKER_NAME --net=bridge --privileged -v "$PATHSCRIPT"/hostapd.conf:/etc/hostapd/hostapd.conf -v "$PATHSCRIPT"/dnsmasq.conf:/etc/dnsmasq.conf $DOCKER_IMAGE > /dev/null 2>&1 
+    pid=$(docker inspect -f '{{.State.Pid}}' $DOCKER_NAME)
+    
+	# Assign phy wireless interface to the container 
     mkdir -p /var/run/netns
     ln -s /proc/"$pid"/ns/net /var/run/netns/"$pid"
     iw phy "$PHY" set netns "$pid"
     
-    # The rest is necessary ONLY if using --net=none in docker:
-    
-    # Create a pair of "peer" interfaces veth0 and veth1,
-    # bind the veth0 end to the bridge, and bring it up
-    ip link add veth0 type veth peer name veth1
-    brctl addif "$BRIDGE" veth0
-    ip link set veth0 up
-    # Place veth1 inside the container's network namespace,
-    ip link set veth1 netns "$pid"
-    ip netns exec "$pid" ip link set dev veth1 name eth0
-    ip netns exec "$pid" ip link set eth0 address 12:34:56:78:9a:bc
-    ip netns exec "$pid" ip link set eth0 up
-    ip netns exec "$pid" ip addr add "$WAN_IP" dev eth0
-    ip netns exec "$pid" ip route add default via "$GW"
-}
-
-service_start () { 
-    IFACE="$1"
-    echo -e "[+] Starting the docker container with name ${GREEN}$DOCKER_NAME${NC}"
-    #docker run --rm -t --name $DOCKER_NAME --net=host --privileged -v $PATHSCRIPT/hostapd.conf:/etc/hostapd/hostapd.conf -v $PATHSCRIPT/dnsmasq.conf:/etc/dnsmasq.conf $DOCKER_IMAGE
-    docker run -dt --name $DOCKER_NAME --net=none --privileged -v "$PATHSCRIPT"/hostapd.conf:/etc/hostapd/hostapd.conf -v "$PATHSCRIPT"/dnsmasq.conf:/etc/dnsmasq.conf $DOCKER_IMAGE > /dev/null 2>&1
-    pid=$(docker inspect -f '{{.State.Pid}}' $DOCKER_NAME)
-    #echo -e "${BLUE}[INFO]${NC} $IFACE is now exclusively handled to the docker container"
-    #echo -e "[+] Configuring wiring in the docker container and attaching its eth to the default docker bridge"
-    # This is not necessary if --net=none is not used), however we'd still need to pass the wifi interface to the container
-    allocate_ifaces "$pid"
-    ### Assign an IP to the wifi interface
+	### Assign an IP to the wifi interface
     echo -e "[+] Configuring ${GREEN}$IFACE${NC} with IP address ${GREEN}$IP_AP${NC}"
     ip netns exec "$pid" ip addr flush dev "$IFACE"
     ip netns exec "$pid" ip link set "$IFACE" up
