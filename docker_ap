@@ -33,6 +33,7 @@ SSID="DockerAP"
 HW_MODE="g"
 CHANNEL="6"
 PASSPHRASE="dockerap123"
+WPA_MODE="WPA-PSK"
 
 # Other parameters
 SUBNET="192.168.7"
@@ -92,7 +93,22 @@ init () {
         echo -e "${RED}[ERROR]${NC} The interface provided does not exist. Exiting..."
         exit 1
     fi
-    
+   
+	# Check that the given interface is not used by the host as the default route
+	if [[ $(ip r | grep default | cut -d " " -f5) == "$IFACE" ]]
+    then
+        echo -e "${BLUE}[INFO]${NC} The selected interface is configured as the default route, if you use it you will lose internet connectivity"
+		while true;
+		do
+            read -p "Do you wish to continue? [y/n]" yn
+            case $yn in
+                [Yy]* ) break;;
+                [Nn]* ) exit;;
+                * ) echo "Please answer yes or no.";;
+            esac
+        done
+	fi
+
     # Find the physical interface for the given wireless interface
     PHY=$(cat /sys/class/net/"$IFACE"/phy80211/name)
 
@@ -119,9 +135,6 @@ init () {
 		then
 		    docker build --rm -t fgg89/docker-ap -f "$PATHSCRIPT"/build/Dockerfile_x86_64 .
 		fi
-        # Option 2: Pulling
-        #echo -e "[+] Pulling ${GREEN}$DOCKER_IMAGE${NC} (Grab a coffee...)"
-        #docker pull $DOCKER_IMAGE > /dev/null 2>&1
     fi
 
     ### Check if hostapd is running in the host
@@ -165,7 +178,7 @@ init () {
 
     ### Generating hostapd.conf file
     echo -e "[+] Generating hostapd.conf"
-    sed -e "s/_SSID/$SSID/g" -e "s/_IFACE/$IFACE/" -e "s/_HW_MODE/$HW_MODE/g" -e "s/_CHANNEL/$CHANNEL/g" -e "s/_PASSPHRASE/$PASSPHRASE/g" "$PATHSCRIPT"/templates/hostapd.template > "$PATHSCRIPT"/hostapd.conf
+    sed -e "s/_SSID/$SSID/g" -e "s/_IFACE/$IFACE/" -e "s/_HW_MODE/$HW_MODE/g" -e "s/_CHANNEL/$CHANNEL/g" -e "s/_PASSPHRASE/$PASSPHRASE/g" -e "s/_WPA_MODE/$WPA_MODE/g" "$PATHSCRIPT"/templates/hostapd.template > "$PATHSCRIPT"/hostapd.conf
 
     ### Generating dnsmasq.conf file
     echo -e "[+] Generating dnsmasq.conf" 
