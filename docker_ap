@@ -24,7 +24,6 @@ RED='\e[0;31m'
 GREEN='\e[0;32m'
 BLUE='\e[0;34m'
 NC='\e[0m'
-PATHSCRIPT=$(pwd)
 ROOT_UID="0"
 ARCH=$(arch)
 
@@ -42,6 +41,10 @@ NETMASK="/24"
 DNS_SERVER="8.8.8.8"
 DOCKER_NAME="ap-container"
 CONF_FILE="wlan_config.txt"
+#PATHSCRIPT=$(pwd)
+pushd `dirname $0` > /dev/null
+PATHSCRIPT=`pwd`
+popd > /dev/null
 
 if [ "$ARCH" == "armv7l" ]
 then
@@ -55,7 +58,7 @@ else
 fi
 
 show_usage () {
-    echo "Usage: $0 <start|stop> [interface]"
+    echo -e "Usage: $0 <start|stop> [interface]"
     exit 1
 }
 
@@ -94,12 +97,12 @@ init () {
         exit 1
     fi
    
-	# Check that the given interface is not used by the host as the default route
-	if [[ $(ip r | grep default | cut -d " " -f5) == "$IFACE" ]]
+    # Check that the given interface is not used by the host as the default route
+    if [[ $(ip r | grep default | cut -d " " -f5) == "$IFACE" ]]
     then
         echo -e "${BLUE}[INFO]${NC} The selected interface is configured as the default route, if you use it you will lose internet connectivity"
-		while true;
-		do
+        while true;
+        do
             read -p "Do you wish to continue? [y/n]" yn
             case $yn in
                 [Yy]* ) break;;
@@ -132,9 +135,9 @@ init () {
         then
             docker build --rm -t $DOCKER_IMAGE -f "$PATHSCRIPT"/build/Dockerfile_armv7 .
         elif [ "$ARCH" == "x86_64" ]
-		then
-		    docker build --rm -t $DOCKER_IMAGE -f "$PATHSCRIPT"/build/Dockerfile_x86_64 .
-		fi
+        then
+            docker build --rm -t $DOCKER_IMAGE -f "$PATHSCRIPT"/build/Dockerfile_x86_64 .
+        fi
     fi
 
     ### Check if hostapd is running in the host
@@ -158,23 +161,23 @@ init () {
 		IFS="="
 		while read -r name value
 		do
-            case $name in
-				''|\#* ) continue;; # Skip blank lines and lines starting with #
-                "SSID" )
-                    SSID=${value//\"/};;
-                "PASSPHRASE" )
-                    PASSPHRASE=${value//\"/};;
-                "HW_MODE" )
-                    HW_MODE=${value//\"/};;
-                "CHANNEL" )
-                    CHANNEL=${value//\"/};;
-                * )
-                    echo Parameter "$line" in "$PATHSCRIPT"/"$CONFIG_FILE" not recognized
-			esac
+                    case $name in
+                        ''|\#* ) continue;; # Skip blank lines and lines starting with #
+                        "SSID" )
+                            SSID=${value//\"/};;
+                        "PASSPHRASE" )
+                            PASSPHRASE=${value//\"/};;
+                        "HW_MODE" )
+                            HW_MODE=${value//\"/};;
+                        "CHANNEL" )
+                            CHANNEL=${value//\"/};;
+                        * )
+                            echo Parameter "$line" in "$PATHSCRIPT"/"$CONFIG_FILE" not recognized
+		    esac
 		done < "$PATHSCRIPT"/"$CONF_FILE"
-	else
+    else
         echo -e "${BLUE}[INFO]${NC} WLAN config file not found. Setting default WLAN parameters"
-	fi
+    fi
 
     ### Generating hostapd.conf file
     echo -e "[+] Generating hostapd.conf"
@@ -191,12 +194,12 @@ service_start () {
     docker run -dt --name $DOCKER_NAME --net=bridge --cap-add=NET_ADMIN --cap-add=NET_RAW -v "$PATHSCRIPT"/hostapd.conf:/etc/hostapd/hostapd.conf -v "$PATHSCRIPT"/dnsmasq.conf:/etc/dnsmasq.conf $DOCKER_IMAGE > /dev/null 2>&1
     pid=$(docker inspect -f '{{.State.Pid}}' $DOCKER_NAME)
     
-	# Assign phy wireless interface to the container 
+    # Assign phy wireless interface to the container 
     mkdir -p /var/run/netns
     ln -s /proc/"$pid"/ns/net /var/run/netns/"$pid"
     iw phy "$PHY" set netns "$pid"
     
-	### Assign an IP to the wifi interface
+    ### Assign an IP to the wifi interface
     echo -e "[+] Configuring ${GREEN}$IFACE${NC} with IP address ${GREEN}$IP_AP${NC}"
     ip netns exec "$pid" ip addr flush dev "$IFACE"
     ip netns exec "$pid" ip link set "$IFACE" up
