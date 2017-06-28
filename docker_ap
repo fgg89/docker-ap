@@ -42,8 +42,8 @@ DNS_SERVER="8.8.8.8"
 DOCKER_NAME="ap-container"
 CONF_FILE="wlan_config.txt"
 #PATHSCRIPT=$(pwd)
-pushd `dirname $0` > /dev/null
-PATHSCRIPT=`pwd`
+pushd "$(dirname "$0")" > /dev/null
+PATHSCRIPT=$(pwd)
 popd > /dev/null
 
 if [ "$ARCH" == "armv7l" ]
@@ -164,7 +164,8 @@ init () {
                     case $name in
                         ''|\#* ) continue;; # Skip blank lines and lines starting with #
                         "SSID" )
-                            SSID=${value//\"/};;
+                            SSID=${value//\"/}
+                            echo -e "${BLUE}"[INFO]"${NC}" SSID: "${MAGENTA}""$SSID""${NC}";;
                         "PASSPHRASE" )
                             PASSPHRASE=${value//\"/};;
                         "HW_MODE" )
@@ -172,11 +173,12 @@ init () {
                         "CHANNEL" )
                             CHANNEL=${value//\"/};;
                         * )
-                            echo Parameter "$line" in "$PATHSCRIPT"/"$CONFIG_FILE" not recognized
+                            echo Parameter "$name" in "$PATHSCRIPT"/"$CONF_FILE" not recognized
 		    esac
 		done < "$PATHSCRIPT"/"$CONF_FILE"
     else
         echo -e "${BLUE}[INFO]${NC} WLAN config file not found. Setting default WLAN parameters"
+        echo -e "${BLUE}"[INFO]"${NC}" SSID: "${MAGENTA}""$SSID""${NC}"
     fi
 
     ### Generating hostapd.conf file
