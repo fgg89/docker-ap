@@ -3,7 +3,7 @@
 # to `latest`! See
 # https://github.com/phusion/baseimage-docker/blob/master/Changelog.md
 # for a list of version numbers.
-FROM ubuntu:14.04
+FROM ubuntu:18.04
 MAINTAINER fgg89
 
 # Update the repos

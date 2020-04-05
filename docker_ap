@@ -13,12 +13,13 @@
 #bash_version    :4.3.11(1)-release (x86_64-pc-linux-gnu)
 #dependencies	 :docker, iw, pgrep, grep, iptables, cat, ip,
 #                 bridge-utils, rfkill
-#=============================================================all 
+#======================================================================== 
 
-#YELLOW='\e[0;33m'
-#BLACK='\e[0;30m'
-#CYAN='\e[0;36m'
-#WHITE='\e[0;37m'
+#########################################################################
+#				VARS					#
+#########################################################################
+
+# Colors
 MAGENTA='\e[0;35m'
 RED='\e[0;31m'
 GREEN='\e[0;32m'
@@ -41,10 +42,22 @@ NETMASK="/24"
 DNS_SERVER="8.8.8.8"
 DOCKER_NAME="ap-container"
 CONF_FILE="wlan_config.txt"
-#PATHSCRIPT=$(pwd)
+
 pushd "$(dirname "$0")" > /dev/null
 PATHSCRIPT=$(pwd)
 popd > /dev/null
+
+
+# Check run as root
+if [ "$UID" -ne "$ROOT_UID" ] ; then
+    echo "You must be root to run this script!"
+    exit 1
+fi
+
+if [ "$1" == "help" ] || [ "$#" -eq 0 ] || [ "$#" -ne 2 ]
+then
+    show_usage
+fi
 
 if [ "$ARCH" == "armv7l" ]
 then
@@ -57,27 +70,16 @@ else
     exit 1
 fi
 
+# TODO: Check docker service status
+
+#########################################################################
+#			FUNCTIONS					#
+#########################################################################
+
 show_usage () {
     echo -e "Usage: $0 <start|stop> [interface]"
     exit 1
 }
-
-if [ "$1" == "help" ] || [ "$#" -eq 0 ]
-then
-    show_usage
-fi
-
-# Check run as root
-if [ "$UID" -ne "$ROOT_UID" ] ; then
-    echo "You must be root to run this script!"
-    exit 1
-fi
-
-# Argument check
-if [ "$#" -eq 0 ] || [ "$#" -gt 2 ] 
-then
-    show_usage
-fi
 
 print_banner () {
     echo -e "${MAGENTA} ___          _               _   ___   ${NC}"
@@ -87,7 +89,8 @@ print_banner () {
     echo ""
 }
 
-init () {
+# Check that the interface exists and its not in use. Returns iface phy
+iface_check (){
     IFACE="$1"
     
     # Check that the requested iface is available
@@ -114,14 +117,14 @@ init () {
 
     # Find the physical interface for the given wireless interface
     PHY=$(cat /sys/class/net/"$IFACE"/phy80211/name)
+    echo $PHY
+}
 
+# Check system arquitecture and pull the right image, if necessary.
+docker_img() {    
     # Architecture
     echo -e "${BLUE}[INFO]${NC} Architecture: ${GREEN}$ARCH${NC}"
-    
-    # Number of phy interfaces
-    NUM_PHYS=$(iw dev | grep -c phy)
-    echo -e "${BLUE}[INFO]${NC} Number of physical wireless interfaces connected: ${GREEN}$NUM_PHYS${NC}"
-    
+
     # Checking if the docker image has been already pulled
     IMG_CHECK=$(docker images -q $DOCKER_IMAGE)
     if [ "$IMG_CHECK" != "" ]
@@ -136,10 +139,13 @@ init () {
             docker build -q --rm -t $DOCKER_IMAGE -f "$PATHSCRIPT"/build/Dockerfile_armv7 .
         elif [ "$ARCH" == "x86_64" ]
         then
-            docker build -q --rm -t $DOCKER_IMAGE -f "$PATHSCRIPT"/build/Dockerfile_x86_64 .
+            #docker build -q --rm -t $DOCKER_IMAGE -f "$PATHSCRIPT"/build/Dockerfile_x86_64 .
+            sudo -u "$USER" bash -c "docker build -q --rm -t $DOCKER_IMAGE -f "$PATHSCRIPT"/build/Dockerfile_x86_64 ."
         fi
     fi
+}
 
+hostapd_setup() {
     ### Check if hostapd is running in the host
     hostapd_pid=$(pgrep hostapd)
     if [ ! "$hostapd_pid" == "" ] 
@@ -180,6 +186,21 @@ init () {
         echo -e "${BLUE}[INFO]${NC} WLAN config file not found. Setting default WLAN parameters"
         echo -e "${BLUE}"[INFO]"${NC}" SSID: "${MAGENTA}""$SSID""${NC}"
     fi
+
+}
+
+init () {
+    IFACE="$1"
+    
+    PHY=$(iface_check "$IFACE")
+    
+    # Number of phy interfaces
+    NUM_PHYS=$(iw dev | grep -c phy)
+    echo -e "${BLUE}[INFO]${NC} Number of physical wireless interfaces connected: ${GREEN}$NUM_PHYS${NC}"
+
+    docker_img
+
+    hostapd_setup "$IFACE"
 
     ### Generating hostapd.conf file
     echo -e "[+] Generating hostapd.conf"
@@ -239,6 +260,10 @@ service_stop () {
     # Clean up dangling symlinks in /var/run/netns
     find -L /var/run/netns -type l -delete
 }
+
+#########################################################################
+#				MAIN					#
+#########################################################################
 
 if [ "$1" == "start" ]
 then

@@ -23,8 +23,8 @@ Default configuration is specified in ``wlan_config.txt``:
 
 * SSID = **DockerAP**
 * PASSPHRASE = **dockerap123**
-* HW_MODE=g
-* CHANNEL=1
+* HW_MODE=**g**
+* CHANNEL=**1**
 
 ## Usage
 
@@ -42,5 +42,6 @@ Stop the service:
 
 ### Donate
 
-[![paypal](https://www.paypalobjects.com/en_US/ES/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=CGSJNMMTF7EC8)
+I will very much appreciate if you want to support the development and keep the project ongoing by buying me a beer! :beer::relaxed:
 
+[![paypal](https://www.paypalobjects.com/en_US/ES/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=CGSJNMMTF7EC8)
